@@ -1,0 +1,4 @@
+# Render ignore file
+node_modules/
+*.log
+.env.local
