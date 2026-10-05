@@ -8,7 +8,7 @@ import { logger } from './utils/logger';
 import { createServer } from 'http';
 import { seedAdmin } from './utils/seeder';
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 
 const httpServer = createServer(app);
 
