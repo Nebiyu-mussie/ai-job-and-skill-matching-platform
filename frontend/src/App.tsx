@@ -28,6 +28,12 @@ const CoursesPage = lazy(() => import('@/pages/CoursesPage'));
 const MessagesPage = lazy(() => import('@/pages/MessagesPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 
+// Static pages
+const AboutPage = lazy(() => import('@/pages/AboutPage'));
+const BlogPage = lazy(() => import('@/pages/BlogPage'));
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
+const TermsPage = lazy(() => import('@/pages/TermsPage'));
+
 const JobSeekerDashboard = lazy(() => import('@/pages/dashboard/jobseeker/DashboardPage'));
 const ProfilePage = lazy(() => import('@/pages/dashboard/jobseeker/ProfilePage'));
 const ResumeManagerPage = lazy(() => import('@/pages/dashboard/jobseeker/ResumeManagerPage'));
@@ -82,6 +88,10 @@ export default function App() {
             <Route path="/companies" element={<SuspenseWrap><CompaniesPage /></SuspenseWrap>} />
             <Route path="/companies/:slug" element={<SuspenseWrap><CompanyDetailPage /></SuspenseWrap>} />
             <Route path="/courses" element={<SuspenseWrap><CoursesPage /></SuspenseWrap>} />
+            <Route path="/about" element={<SuspenseWrap><AboutPage /></SuspenseWrap>} />
+            <Route path="/blog" element={<SuspenseWrap><BlogPage /></SuspenseWrap>} />
+            <Route path="/privacy" element={<SuspenseWrap><PrivacyPage /></SuspenseWrap>} />
+            <Route path="/terms" element={<SuspenseWrap><TermsPage /></SuspenseWrap>} />
           </Route>
 
           <Route path="/login" element={<SuspenseWrap><LoginPage /></SuspenseWrap>} />
