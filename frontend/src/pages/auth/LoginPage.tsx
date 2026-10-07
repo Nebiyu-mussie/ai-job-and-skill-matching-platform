@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 const schema = z.object({
@@ -15,11 +15,27 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showSlowLoadingMessage, setShowSlowLoadingMessage] = useState(false);
   const { login, isLoggingIn } = useAuth();
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+
+  // Smart loading state: show "waking up server" message after 4 seconds
+  useEffect(() => {
+    let timer: number;
+    if (isLoggingIn) {
+      timer = window.setTimeout(() => {
+        setShowSlowLoadingMessage(true);
+      }, 4000);
+    } else {
+      setShowSlowLoadingMessage(false);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isLoggingIn]);
 
   const onSubmit = (data: FormData) => login(data);
 
@@ -94,7 +110,9 @@ export default function LoginPage() {
               disabled={isLoggingIn}
               className="btn-primary w-full py-3 text-base"
             >
-              {isLoggingIn ? 'Signing in...' : 'Sign In'}
+              {isLoggingIn 
+                ? (showSlowLoadingMessage ? 'Waking up server, please wait...' : 'Signing in...')
+                : 'Sign In'}
             </button>
           </form>
 
