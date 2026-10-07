@@ -8,6 +8,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
 import hpp from 'hpp';
 import path from 'path';
+import mongoose from 'mongoose';
 
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
@@ -58,7 +59,12 @@ const corsOptions = {
       'http://localhost:3000',
     ];
     
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Log CORS requests in development
+    if (process.env.NODE_ENV === 'development') {
+      logger.info(`CORS request from origin: ${origin || 'no origin'}`);
+    }
+    
+    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
     if (!origin) {
       callback(null, true);
       return;
@@ -68,14 +74,26 @@ const corsOptions = {
     if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      logger.warn(`CORS blocked request from origin: ${origin}`);
+      console.warn(`⚠️  CORS: Blocked request from unauthorized origin: ${origin}`);
+      console.warn(`✅ Allowed origins: ${allowedOrigins.join(', ')}`);
+      console.warn(`✅ Also allowed: *.vercel.app domains`);
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400, // 24 hours
 };
 app.use(cors(corsOptions));
+
+// Log CORS configuration on startup
+console.log('🔐 CORS Configuration:');
+console.log(`   - Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+console.log(`   - Vercel domains: *.vercel.app (allowed)`);
+console.log(`   - Credentials: enabled`);
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -123,14 +141,35 @@ app.use(compression());
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Health check
+// Health check with database connectivity
 app.get('/health', (_req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: 'AI Job Platform API is running',
+  const dbHealth = {
+    connected: mongoose.connection.readyState === 1,
+    state: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown',
+    name: mongoose.connection.name,
+  };
+
+  const isHealthy = dbHealth.connected;
+  const statusCode = isHealthy ? 200 : 503;
+
+  res.status(statusCode).json({
+    success: isHealthy,
+    message: isHealthy ? 'AI Job Platform API is running' : 'API is running but database is not connected',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     version: '1.0.0',
+    database: {
+      connected: dbHealth.connected,
+      state: dbHealth.state,
+      name: dbHealth.name,
+      readyState: mongoose.connection.readyState,
+    },
+    memory: {
+      used: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
+      total: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB`,
+      rss: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
+    },
+    uptime: `${Math.floor(process.uptime())}s`,
   });
 });
 
