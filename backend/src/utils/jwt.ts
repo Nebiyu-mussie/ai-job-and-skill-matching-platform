@@ -7,6 +7,31 @@ export interface JWTPayload {
   email: string;
 }
 
+// Validate JWT secrets at startup
+const validateJWTSecrets = () => {
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ CRITICAL: JWT_SECRET environment variable is not set!');
+    console.error('   Authentication will fail. Set JWT_SECRET in your environment variables.');
+    throw new Error('JWT_SECRET is required but not configured');
+  }
+  
+  if (!process.env.JWT_REFRESH_SECRET) {
+    console.error('❌ CRITICAL: JWT_REFRESH_SECRET environment variable is not set!');
+    console.error('   Token refresh will fail. Set JWT_REFRESH_SECRET in your environment variables.');
+    throw new Error('JWT_REFRESH_SECRET is required but not configured');
+  }
+
+  if (process.env.JWT_SECRET.length < 32) {
+    console.warn('⚠️  WARNING: JWT_SECRET is too short (< 32 characters)');
+    console.warn('   For production, use a longer, more secure secret.');
+  }
+
+  console.log('✅ JWT secrets validated');
+};
+
+// Validate on module load
+validateJWTSecrets();
+
 export const signAccessToken = (payload: JWTPayload): string => {
   return jwt.sign(payload, process.env.JWT_SECRET as string, {
     expiresIn: process.env.JWT_EXPIRE || '15m',

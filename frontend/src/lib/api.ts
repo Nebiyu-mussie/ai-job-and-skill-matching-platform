@@ -39,13 +39,45 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Response interceptor - handle token refresh
+// Logout and redirect to login
+const handleAuthFailure = () => {
+  const authStore = useAuthStore.getState();
+  
+  // Clear all auth data
+  authStore.logout();
+  
+  // Clear storage
+  localStorage.clear();
+  sessionStorage.clear();
+  
+  // Redirect to login (only if not already there)
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
+// Response interceptor - handle token refresh and auth failures
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Handle 401 errors (Unauthorized)
+    if (error.response?.status === 401) {
+      // Special handling for logout endpoint - don't retry, just fail silently
+      if (originalRequest.url?.includes('/auth/logout')) {
+        console.log('Logout endpoint returned 401 (token expired) - ignoring');
+        return Promise.resolve({ data: { success: true } }); // Return success anyway
+      }
+
+      // Prevent infinite retry loops
+      if (originalRequest._retry) {
+        console.error('Token refresh already attempted, logging out');
+        handleAuthFailure();
+        return Promise.reject(error);
+      }
+
+      // If already refreshing, queue this request
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -54,25 +86,35 @@ api.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return api(originalRequest);
           })
-          .catch((err) => Promise.reject(err));
+          .catch((err) => {
+            console.error('Queued request failed after token refresh');
+            return Promise.reject(err);
+          });
       }
 
+      // Mark this request as retried
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
+        // Attempt to refresh the token
         const response = await api.post('/auth/refresh-token');
         const { accessToken } = response.data.data;
 
+        // Update token in store
         useAuthStore.getState().setAccessToken(accessToken);
+        
+        // Process queued requests
         processQueue(null, accessToken);
 
+        // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
+        // Token refresh failed - log out user
+        console.error('Token refresh failed, logging out:', refreshError);
         processQueue(refreshError, null);
-        useAuthStore.getState().logout();
-        window.location.href = '/login';
+        handleAuthFailure();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

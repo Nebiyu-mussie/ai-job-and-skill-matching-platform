@@ -55,6 +55,49 @@ export const authenticate = async (
   }
 };
 
+/**
+ * Soft authentication for logout endpoints
+ * Allows expired or invalid tokens through for graceful session cleanup
+ */
+export const softAuthenticate = async (
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    let token: string | undefined;
+
+    if (req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    // If no token, just continue (logout should still work)
+    if (!token) {
+      return next();
+    }
+
+    try {
+      const decoded = verifyAccessToken(token);
+      const user = await User.findById(decoded.id);
+
+      if (user) {
+        req.user = user;
+        req.userId = user._id.toString();
+      }
+    } catch (error) {
+      // Token is expired or invalid, but we still allow the request through
+      // This enables graceful logout even with expired tokens
+      logger.debug('Soft auth: Token verification failed (continuing anyway)');
+    }
+
+    next();
+  } catch (error) {
+    // Even on error, continue (allows logout to proceed)
+    logger.error('Soft auth middleware error (continuing):', error);
+    next();
+  }
+};
+
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, _res: Response, next: NextFunction): void => {
     if (!req.user) {
