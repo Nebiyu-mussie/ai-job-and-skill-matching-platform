@@ -9,34 +9,111 @@ interface EmailOptions {
 }
 
 class EmailService {
-  private transporter: Transporter;
+  private transporter: Transporter | null = null;
+  private isConfigured: boolean = false;
+  private isDevelopment: boolean = process.env.NODE_ENV === 'development';
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    this.initializeTransporter();
+  }
+
+  private initializeTransporter(): void {
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpHost = process.env.SMTP_HOST;
+
+    if (!smtpUser || !smtpPass) {
+      logger.warn('⚠️  EMAIL SERVICE NOT CONFIGURED:');
+      logger.warn('   SMTP credentials are missing in environment variables.');
+      logger.warn('   Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, FROM_NAME, FROM_EMAIL');
+      logger.warn('   Emails will be LOGGED TO CONSOLE in development mode.');
+      logger.warn('   Set these environment variables in Render for production email delivery.');
+      this.isConfigured = false;
+      return;
+    }
+
+    try {
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+      this.isConfigured = true;
+      logger.info('✅ Email service configured successfully');
+    } catch (error) {
+      logger.error('❌ Failed to initialize email transporter:', error);
+      this.isConfigured = false;
+    }
   }
 
   async send(options: EmailOptions): Promise<void> {
+    console.log('🚨 Email.send() called!', { to: options.to, subject: options.subject });
+    
     const mailOptions = {
-      from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
+      from: `${process.env.FROM_NAME || 'AI Job Platform'} <${process.env.FROM_EMAIL || 'noreply@aijobplatform.com'}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
     };
 
+    // In development mode without SMTP config, log the email details
+    if (!this.isConfigured) {
+      if (this.isDevelopment) {
+        console.log('\n📧 ========== EMAIL (Development Mode - Not Sent) ==========');
+        console.log(`To: ${mailOptions.to}`);
+        console.log(`Subject: ${mailOptions.subject}`);
+        console.log(`From: ${mailOptions.from}`);
+        
+        // Extract reset URL or verification URL from HTML
+        const urlMatch = options.html.match(/href="([^"]+)"/);
+        if (urlMatch && urlMatch[1]) {
+          console.log(`🔗 ACTION LINK: ${urlMatch[1]}`);
+          
+          // Extract token from URL
+          const tokenMatch = urlMatch[1].match(/\/([a-f0-9]{64}|[a-zA-Z0-9]{40,})$/);
+          if (tokenMatch) {
+            console.log(`🎫 TOKEN: ${tokenMatch[1]}`);
+          }
+        }
+        
+        console.log('📧 ========================================================\n');
+        
+        logger.info('📧 ========== EMAIL (Development Mode - Not Sent) ==========');
+        logger.info(`To: ${mailOptions.to}`);
+        logger.info(`Subject: ${mailOptions.subject}`);
+        logger.info(`From: ${mailOptions.from}`);
+        
+        if (urlMatch && urlMatch[1]) {
+          logger.info(`🔗 ACTION LINK: ${urlMatch[1]}`);
+          const tokenMatch = urlMatch[1].match(/\/([a-f0-9]{64}|[a-zA-Z0-9]{40,})$/);
+          if (tokenMatch) {
+            logger.info(`🎫 TOKEN: ${tokenMatch[1]}`);
+          }
+        }
+        
+        logger.info('📧 ========================================================');
+      } else {
+        logger.error('❌ Cannot send email: SMTP not configured in production environment');
+        logger.error('   Please set SMTP environment variables in Render dashboard');
+      }
+      return;
+    }
+
     try {
-      await this.transporter.sendMail(mailOptions);
-      logger.info(`Email sent to ${options.to}`);
-    } catch (error) {
-      logger.error('Email sending failed:', error);
+      await this.transporter!.sendMail(mailOptions);
+      logger.info(`✅ Email sent successfully to ${options.to}`);
+    } catch (error: any) {
+      logger.error('❌ Email sending failed:', error.message);
+      if (this.isDevelopment) {
+        logger.error('📧 Email details (for debugging):');
+        logger.error(`   To: ${mailOptions.to}`);
+        logger.error(`   Subject: ${mailOptions.subject}`);
+      }
       // Don't throw - email failures shouldn't break the application
     }
   }

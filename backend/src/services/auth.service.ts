@@ -160,17 +160,23 @@ class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
+    console.log('🔍 forgotPassword called for:', email);
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
+      console.log('⚠️  User not found for email:', email);
       // Don't reveal if user exists
       return;
     }
 
+    console.log('✅ User found:', user.firstName, user.email);
     const resetToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    console.log('🔗 Reset URL:', resetUrl);
+    console.log('📧 Calling emailService.sendPasswordReset...');
     await emailService.sendPasswordReset(user.firstName, user.email, resetUrl);
+    console.log('✅ emailService.sendPasswordReset completed');
   }
 
   async resetPassword(token: string, newPassword: string): Promise<IUser> {
