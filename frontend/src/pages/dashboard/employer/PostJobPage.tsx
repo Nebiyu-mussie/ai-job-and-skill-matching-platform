@@ -32,9 +32,20 @@ export default function PostJobPage() {
       navigate('/employer/jobs');
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.message || 'Failed to post job';
-      toast.error(message);
       console.error('Job post error:', error?.response?.data);
+      
+      // Handle validation errors with field-specific messages
+      const errors = error?.response?.data?.errors;
+      if (errors && Array.isArray(errors)) {
+        errors.forEach((err: any) => {
+          const field = err.path ? err.path.join('.') : 'Field';
+          toast.error(`${field}: ${err.message}`);
+        });
+      } else {
+        // Handle generic errors
+        const message = error?.response?.data?.message || 'Failed to post job. Please check your inputs and try again.';
+        toast.error(message);
+      }
     },
   });
 
