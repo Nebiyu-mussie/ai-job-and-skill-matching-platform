@@ -22,13 +22,13 @@ export default function LoginPage() {
     resolver: zodResolver(schema),
   });
 
-  // Smart loading state: show "waking up server" message after 4 seconds
+  // Smart loading state: show "server waking up" message after 5 seconds
   useEffect(() => {
     let timer: number;
     if (isLoggingIn) {
       timer = window.setTimeout(() => {
         setShowSlowLoadingMessage(true);
-      }, 4000);
+      }, 5000); // Wait 5 seconds before showing "waking up" message
     } else {
       setShowSlowLoadingMessage(false);
     }
@@ -37,7 +37,10 @@ export default function LoginPage() {
     };
   }, [isLoggingIn]);
 
-  const onSubmit = (data: FormData) => login(data);
+  const onSubmit = (data: FormData) => {
+    console.log('Submitting login form');
+    login(data);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-background to-purple-50 dark:from-brand-950/20 dark:via-background dark:to-purple-950/20 px-4 py-12">
@@ -108,12 +111,20 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="btn-primary w-full py-3 text-base"
+              className="btn-primary w-full py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoggingIn 
-                ? (showSlowLoadingMessage ? 'Waking up server, please wait...' : 'Signing in...')
+                ? (showSlowLoadingMessage 
+                    ? 'Server is waking up, please wait...' 
+                    : 'Signing in...')
                 : 'Sign In'}
             </button>
+
+            {showSlowLoadingMessage && (
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Free tier servers take 30-60 seconds to wake up on first request. Thank you for your patience.
+              </p>
+            )}
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">

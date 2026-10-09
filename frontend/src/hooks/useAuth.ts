@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import api, { getErrorMessage } from '@/lib/api';
+import api, { getErrorMessage, checkServerHealth } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { disconnectSocket } from '@/lib/socket';
 
@@ -12,6 +12,12 @@ export const useAuth = () => {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
+      // Optional: Check server health first if we suspect cold start
+      // This will pre-warm the server without blocking the UI
+      checkServerHealth().catch(() => {
+        console.log('Health check failed or server still waking up');
+      });
+
       const res = await api.post('/auth/login', credentials);
       return res.data.data;
     },
@@ -27,7 +33,16 @@ export const useAuth = () => {
       else navigate('/dashboard');
     },
     onError: (error: any) => {
-      toast.error(getErrorMessage(error));
+      console.error('Login error:', error);
+      
+      // Provide helpful error messages
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        toast.error('Login request timed out. The server might be waking up. Please try again.');
+      } else if (error.code === 'ERR_NETWORK') {
+        toast.error('Cannot connect to server. Please check your internet connection.');
+      } else {
+        toast.error(getErrorMessage(error));
+      }
     },
   });
 
