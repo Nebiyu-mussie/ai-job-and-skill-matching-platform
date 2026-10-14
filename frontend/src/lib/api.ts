@@ -104,6 +104,14 @@ api.interceptors.response.use(
 
     // Handle 401 errors (Unauthorized)
     if (error.response?.status === 401) {
+      // DO NOT attempt token refresh for login/register endpoints
+      // A 401 on these means invalid credentials, not an expired session
+      if (originalRequest.url?.includes('/auth/login') || 
+          originalRequest.url?.includes('/auth/register')) {
+        console.log('Login/register failed with 401 - invalid credentials');
+        return Promise.reject(error);
+      }
+
       // Special handling for logout endpoint - don't retry, just fail silently
       if (originalRequest.url?.includes('/auth/logout')) {
         console.log('Logout endpoint returned 401 (token expired) - ignoring');

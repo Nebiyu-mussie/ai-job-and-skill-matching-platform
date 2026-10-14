@@ -31,13 +31,20 @@ export const useAuth = () => {
     onError: (error: any) => {
       console.error('Login error:', error);
       
-      // Provide helpful error messages
+      // Handle 401 specifically - invalid credentials
+      if (error.response?.status === 401) {
+        toast.error('Invalid email or password');
+        return;
+      }
+      
+      // Provide helpful error messages for other errors
       if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         toast.error('Login request timed out. The server might be waking up. Please try again.');
       } else if (error.code === 'ERR_NETWORK') {
         toast.error('Cannot connect to server. Please check your internet connection.');
       } else {
-        toast.error(getErrorMessage(error));
+        const errorMessage = getErrorMessage(error);
+        toast.error(errorMessage);
       }
     },
   });
@@ -57,7 +64,17 @@ export const useAuth = () => {
       else navigate('/dashboard');
     },
     onError: (error: any) => {
-      toast.error(getErrorMessage(error));
+      console.error('Registration error:', error);
+      
+      // Handle 401 specifically
+      if (error.response?.status === 401) {
+        toast.error('Registration failed. Please check your information.');
+        return;
+      }
+      
+      // Handle other errors
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage);
     },
   });
 
