@@ -66,15 +66,15 @@ class AuthService {
 
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
     
-    try {
-      await emailService.sendWelcome(user.firstName, user.email, verificationUrl);
-    } catch (emailError: any) {
-      // CRITICAL: Never crash registration on email errors
-      console.error('❌ SMTP Dispatch Error in register:', emailError);
-      console.log('🔗 Verification Link Fallback:', verificationUrl);
+    // CRITICAL: Send email asynchronously in background to prevent request timeout
+    // Do NOT await - let HTTP response return immediately
+    emailService.sendWelcome(user.firstName, user.email, verificationUrl).catch((emailError: any) => {
+      // Background email dispatch failed - log fallback link
+      console.error('❌ Background SMTP Dispatch Error in register:', emailError);
+      console.log('🔗 Background Verification Link:', verificationUrl);
       console.log('🎫 Verification Token:', verificationToken);
-      // Continue - the verification token is already saved in database
-    }
+      // Token is already saved in database - admin can manually notify user
+    });
 
     const tokens = this.generateTokens(user);
     await this.saveRefreshToken(user, tokens.refreshToken, data.device);
@@ -183,18 +183,19 @@ class AuthService {
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     console.log('🔗 Reset URL:', resetUrl);
-    console.log('📧 Calling emailService.sendPasswordReset...');
+    console.log('📧 Triggering background email dispatch...');
     
-    try {
-      await emailService.sendPasswordReset(user.firstName, user.email, resetUrl);
-      console.log('✅ emailService.sendPasswordReset completed');
-    } catch (emailError: any) {
-      // CRITICAL: Never crash forgot-password request on email errors
-      console.error('❌ SMTP Dispatch Error in forgotPassword:', emailError);
-      console.log('🔗 Action Link Fallback:', resetUrl);
+    // CRITICAL: Send email asynchronously in background to prevent request timeout
+    // Do NOT await - let HTTP response return immediately
+    emailService.sendPasswordReset(user.firstName, user.email, resetUrl).catch((emailError: any) => {
+      // Background email dispatch failed - log fallback link
+      console.error('❌ Background SMTP Dispatch Error:', emailError);
+      console.log('🔗 Background Fallback Link:', resetUrl);
       console.log('🎫 Reset Token:', resetToken);
-      // Continue - the password reset token is already saved in database
-    }
+      // Token is already saved in database - admin can manually notify user
+    });
+    
+    console.log('✅ forgotPassword completed (email dispatched in background)');
   }
 
   async resetPassword(token: string, newPassword: string): Promise<IUser> {

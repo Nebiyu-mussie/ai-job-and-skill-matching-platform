@@ -45,7 +45,11 @@ class EmailService {
         },
         tls: {
           rejectUnauthorized: false // avoids SSL certificate handshaking rejection on cloud hosts
-        }
+        },
+        // Prevent indefinite hangs on slow SMTP connections
+        connectionTimeout: 8000, // 8 seconds to establish connection
+        greetingTimeout: 8000,   // 8 seconds to receive greeting from server
+        socketTimeout: 10000,    // 10 seconds of inactivity
       });
       this.isConfigured = true;
       logger.info('✅ Email service configured successfully');
