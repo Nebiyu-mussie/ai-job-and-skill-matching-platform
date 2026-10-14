@@ -15,10 +15,17 @@ type FormData = z.infer<typeof schema>;
 export default function ResetPasswordPage() {
   const { token } = useParams<{ token: string }>();
   const { resetPassword } = useAuth();
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ 
+    resolver: zodResolver(schema) 
+  });
 
   const onSubmit = (data: FormData) => {
-    if (token) resetPassword({ token, password: data.password });
+    if (!token) {
+      return;
+    }
+    // Trim token to remove any whitespace
+    const cleanToken = token.trim();
+    resetPassword({ token: cleanToken, password: data.password });
   };
 
   return (
@@ -42,7 +49,13 @@ export default function ResetPasswordPage() {
               </div>
               {errors.confirm && <p className="text-xs text-destructive mt-1">{errors.confirm.message}</p>}
             </div>
-            <button type="submit" className="btn-primary w-full py-3">Reset Password</button>
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Resetting...' : 'Reset Password'}
+            </button>
           </form>
         </div>
       </motion.div>

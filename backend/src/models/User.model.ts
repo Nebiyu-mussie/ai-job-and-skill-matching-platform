@@ -273,8 +273,8 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string):
 UserSchema.methods.createPasswordResetToken = function (): string {
   const resetToken = crypto.randomBytes(32).toString('hex');
   this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
-  return resetToken;
+  this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
+  return resetToken; // Return the unhashed token to be sent via email
 };
 
 UserSchema.methods.createEmailVerificationToken = function (): string {

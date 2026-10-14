@@ -116,7 +116,11 @@ export const useAuth = () => {
 
   const resetPasswordMutation = useMutation({
     mutationFn: async (data: { token: string; password: string }) => {
-      const res = await api.post(`/auth/reset-password/${data.token}`, {
+      // Trim and sanitize token to prevent whitespace issues
+      const cleanToken = data.token.trim();
+      console.log('Reset password - token length:', cleanToken.length);
+      
+      const res = await api.post(`/auth/reset-password/${cleanToken}`, {
         password: data.password,
       });
       return res.data;
@@ -126,7 +130,9 @@ export const useAuth = () => {
       navigate('/login');
     },
     onError: (error: any) => {
-      toast.error(getErrorMessage(error));
+      console.error('Reset password error:', error);
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage);
     },
   });
 

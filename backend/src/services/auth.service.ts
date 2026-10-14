@@ -180,13 +180,41 @@ class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string): Promise<IUser> {
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    console.log('🔍 resetPassword called');
+    console.log('📝 Raw token length:', token?.length);
+    
+    // Trim and sanitize token
+    const cleanToken = token.trim();
+    console.log('📝 Cleaned token length:', cleanToken.length);
+    
+    // Hash the incoming token to match stored hash
+    const hashedToken = crypto.createHash('sha256').update(cleanToken).digest('hex');
+    console.log('🔐 Hashed token (first 10 chars):', hashedToken.substring(0, 10));
+    
     const user = await User.findOne({
       passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: Date.now() },
     }).select('+password');
 
-    if (!user) throw ApiError.badRequest('Invalid or expired reset token');
+    if (!user) {
+      console.log('❌ No user found with valid reset token');
+      
+      // Check if token exists but expired
+      const expiredUser = await User.findOne({
+        passwordResetToken: hashedToken,
+      });
+      
+      if (expiredUser) {
+        console.log('⏰ Token found but expired. Expiry was:', expiredUser.passwordResetExpires);
+        throw ApiError.badRequest('Password reset token has expired. Please request a new one.');
+      }
+      
+      console.log('❌ Token not found in database at all');
+      throw ApiError.badRequest('Invalid or expired reset token');
+    }
+
+    console.log('✅ User found:', user.email);
+    console.log('⏰ Token expires:', user.passwordResetExpires);
 
     user.password = newPassword;
     user.passwordResetToken = undefined;
@@ -194,6 +222,7 @@ class AuthService {
     user.refreshTokens = []; // Invalidate all refresh tokens
     await user.save();
 
+    console.log('✅ Password reset successful for:', user.email);
     return user;
   }
 
