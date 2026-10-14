@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 const schema = z.object({
@@ -15,27 +15,11 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [showSlowLoadingMessage, setShowSlowLoadingMessage] = useState(false);
   const { login, isLoggingIn } = useAuth();
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
-
-  // Smart loading state: show "server waking up" message after 5 seconds
-  useEffect(() => {
-    let timer: number;
-    if (isLoggingIn) {
-      timer = window.setTimeout(() => {
-        setShowSlowLoadingMessage(true);
-      }, 5000); // Wait 5 seconds before showing "waking up" message
-    } else {
-      setShowSlowLoadingMessage(false);
-    }
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [isLoggingIn]);
 
   const onSubmit = (data: FormData) => {
     console.log('Submitting login form');
@@ -113,18 +97,8 @@ export default function LoginPage() {
               disabled={isLoggingIn}
               className="btn-primary w-full py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoggingIn 
-                ? (showSlowLoadingMessage 
-                    ? 'Server is waking up, please wait...' 
-                    : 'Signing in...')
-                : 'Sign In'}
+              {isLoggingIn ? 'Signing in...' : 'Sign In'}
             </button>
-
-            {showSlowLoadingMessage && (
-              <p className="text-xs text-center text-muted-foreground mt-2">
-                Free tier servers take 30-60 seconds to wake up on first request. Thank you for your patience.
-              </p>
-            )}
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import api, { getErrorMessage, checkServerHealth } from '@/lib/api';
+import api, { getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { disconnectSocket } from '@/lib/socket';
 
@@ -12,12 +12,8 @@ export const useAuth = () => {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      // Optional: Check server health first if we suspect cold start
-      // This will pre-warm the server without blocking the UI
-      checkServerHealth().catch(() => {
-        console.log('Health check failed or server still waking up');
-      });
-
+      // Direct login call - no pre-flight health check that could block
+      console.log('Making login request to:', '/auth/login');
       const res = await api.post('/auth/login', credentials);
       return res.data.data;
     },
