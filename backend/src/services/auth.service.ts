@@ -65,7 +65,16 @@ class AuthService {
     await user.save({ validateBeforeSave: false });
 
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-    await emailService.sendWelcome(user.firstName, user.email, verificationUrl);
+    
+    try {
+      await emailService.sendWelcome(user.firstName, user.email, verificationUrl);
+    } catch (emailError: any) {
+      // CRITICAL: Never crash registration on email errors
+      console.error('❌ SMTP Dispatch Error in register:', emailError);
+      console.log('🔗 Verification Link Fallback:', verificationUrl);
+      console.log('🎫 Verification Token:', verificationToken);
+      // Continue - the verification token is already saved in database
+    }
 
     const tokens = this.generateTokens(user);
     await this.saveRefreshToken(user, tokens.refreshToken, data.device);
@@ -175,8 +184,17 @@ class AuthService {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     console.log('🔗 Reset URL:', resetUrl);
     console.log('📧 Calling emailService.sendPasswordReset...');
-    await emailService.sendPasswordReset(user.firstName, user.email, resetUrl);
-    console.log('✅ emailService.sendPasswordReset completed');
+    
+    try {
+      await emailService.sendPasswordReset(user.firstName, user.email, resetUrl);
+      console.log('✅ emailService.sendPasswordReset completed');
+    } catch (emailError: any) {
+      // CRITICAL: Never crash forgot-password request on email errors
+      console.error('❌ SMTP Dispatch Error in forgotPassword:', emailError);
+      console.log('🔗 Action Link Fallback:', resetUrl);
+      console.log('🎫 Reset Token:', resetToken);
+      // Continue - the password reset token is already saved in database
+    }
   }
 
   async resetPassword(token: string, newPassword: string): Promise<IUser> {

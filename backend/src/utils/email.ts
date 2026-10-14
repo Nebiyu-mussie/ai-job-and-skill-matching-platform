@@ -33,17 +33,23 @@ class EmailService {
     }
 
     try {
+      const port = Number(process.env.SMTP_PORT) || 587;
+      
       this.transporter = nodemailer.createTransport({
         host: smtpHost || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false, // true for 465, false for other ports
+        port: port,
+        secure: port === 465, // MUST be false for port 587 (STARTTLS)
         auth: {
-          user: smtpUser,
-          pass: smtpPass,
+          user: smtpUser.trim(),
+          pass: smtpPass.replace(/\s+/g, ''), // strip any spaces from app password
         },
+        tls: {
+          rejectUnauthorized: false // avoids SSL certificate handshaking rejection on cloud hosts
+        }
       });
       this.isConfigured = true;
       logger.info('✅ Email service configured successfully');
+      logger.info(`   Host: ${smtpHost || 'smtp.gmail.com'}, Port: ${port}, Secure: ${port === 465}`);
     } catch (error) {
       logger.error('❌ Failed to initialize email transporter:', error);
       this.isConfigured = false;
@@ -108,13 +114,32 @@ class EmailService {
       await this.transporter!.sendMail(mailOptions);
       logger.info(`✅ Email sent successfully to ${options.to}`);
     } catch (error: any) {
+      // CRITICAL: Never crash the request on SMTP errors - log fallback link instead
+      console.error('❌ SMTP Dispatch Error:', error);
       logger.error('❌ Email sending failed:', error.message);
-      if (this.isDevelopment) {
-        logger.error('📧 Email details (for debugging):');
-        logger.error(`   To: ${mailOptions.to}`);
-        logger.error(`   Subject: ${mailOptions.subject}`);
+      logger.error('   Error code:', error.code);
+      logger.error('   Error command:', error.command);
+      
+      // Extract and log action link as fallback
+      const urlMatch = options.html.match(/href="([^"]+)"/);
+      if (urlMatch && urlMatch[1]) {
+        console.log('🔗 Action Link Fallback:', urlMatch[1]);
+        logger.error('🔗 Action Link Fallback:', urlMatch[1]);
+        
+        // Extract token from URL if present
+        const tokenMatch = urlMatch[1].match(/\/([a-f0-9]{64}|[a-zA-Z0-9]{40,})$/);
+        if (tokenMatch) {
+          console.log('🎫 TOKEN:', tokenMatch[1]);
+          logger.error('🎫 TOKEN:', tokenMatch[1]);
+        }
       }
-      // Don't throw - email failures shouldn't break the application
+      
+      logger.error('📧 Email details (for manual delivery):');
+      logger.error(`   To: ${mailOptions.to}`);
+      logger.error(`   Subject: ${mailOptions.subject}`);
+      
+      // DO NOT throw - email failures shouldn't crash the request
+      // The controller will complete successfully and return 200
     }
   }
 
