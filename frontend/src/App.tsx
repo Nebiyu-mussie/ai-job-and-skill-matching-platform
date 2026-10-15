@@ -42,6 +42,7 @@ const SavedJobsPage = lazy(() => import('@/pages/dashboard/jobseeker/SavedJobsPa
 const MatchesPage = lazy(() => import('@/pages/dashboard/jobseeker/MatchesPage'));
 const SkillGapPage = lazy(() => import('@/pages/dashboard/jobseeker/SkillGapPage'));
 const RecommendationsPage = lazy(() => import('@/pages/dashboard/jobseeker/RecommendationsPage'));
+const DashboardJobSearch = lazy(() => import('@/pages/dashboard/jobseeker/DashboardJobSearch'));
 
 const EmployerDashboard = lazy(() => import('@/pages/dashboard/employer/DashboardPage'));
 const PostJobPage = lazy(() => import('@/pages/dashboard/employer/PostJobPage'));
@@ -102,6 +103,7 @@ export default function App() {
 
           <Route element={<AuthGuard><RoleGuard roles={['jobseeker']}><DashboardLayout /></RoleGuard></AuthGuard>}>
             <Route path="/dashboard" element={<SuspenseWrap><JobSeekerDashboard /></SuspenseWrap>} />
+            <Route path="/dashboard/search" element={<SuspenseWrap><DashboardJobSearch /></SuspenseWrap>} />
             <Route path="/dashboard/profile" element={<SuspenseWrap><ProfilePage /></SuspenseWrap>} />
             <Route path="/dashboard/resumes" element={<SuspenseWrap><ResumeManagerPage /></SuspenseWrap>} />
             <Route path="/dashboard/applications" element={<SuspenseWrap><MyApplicationsPage /></SuspenseWrap>} />

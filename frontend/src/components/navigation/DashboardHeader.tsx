@@ -17,8 +17,8 @@ export default function DashboardHeader() {
   const handleSearch = () => {
     const trimmedQuery = searchQuery.trim();
     if (trimmedQuery) {
-      // Navigate to jobs page with search query
-      navigate(`/jobs?search=${encodeURIComponent(trimmedQuery)}`);
+      // Navigate to dashboard search page with search query
+      navigate(`/dashboard/search?search=${encodeURIComponent(trimmedQuery)}`);
     }
   };
 
