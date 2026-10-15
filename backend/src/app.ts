@@ -141,6 +141,16 @@ app.use(compression());
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Root route for Render load balancer health checks (GET / and HEAD /)
+app.get('/', (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'AI Job Platform API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check with database connectivity
 app.get('/health', (_req: Request, res: Response) => {
   const dbHealth = {

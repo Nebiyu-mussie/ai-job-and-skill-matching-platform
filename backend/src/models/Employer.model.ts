@@ -141,7 +141,6 @@ EmployerSchema.index({ companyName: 'text', description: 'text' });
 EmployerSchema.index({ industry: 1 });
 EmployerSchema.index({ 'location.city': 1 });
 EmployerSchema.index({ isVerified: 1 });
-EmployerSchema.index({ slug: 1 });
 
 // Pre-save: generate slug
 EmployerSchema.pre('save', function (next) {

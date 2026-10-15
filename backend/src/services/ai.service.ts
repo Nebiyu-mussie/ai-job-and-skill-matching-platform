@@ -73,27 +73,47 @@ interface RecommendationResult {
 class AIService {
   private client: AxiosInstance;
   private isAvailable: boolean = true;
+  private lastHealthCheck: Date | null = null;
 
   constructor() {
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    
     this.client = axios.create({
-      baseURL: process.env.AI_SERVICE_URL || 'http://localhost:8000',
+      baseURL: aiServiceUrl,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': process.env.AI_SERVICE_API_KEY || '',
       },
     });
+
+    // Log AI service configuration on startup
+    if (process.env.NODE_ENV === 'production' && aiServiceUrl.includes('localhost')) {
+      logger.warn('⚠️  AI_SERVICE_URL is set to localhost in production. AI features will use fallback calculations.');
+      logger.warn('   Set AI_SERVICE_URL environment variable to your deployed Python AI service URL.');
+      this.isAvailable = false;
+    } else {
+      logger.info(`🤖 AI Service configured: ${aiServiceUrl}`);
+    }
   }
 
   async parseResume(fileUrl: string, fileType: string): Promise<ParsedResume> {
+    // If AI service is known to be unavailable, skip API call
+    if (!this.isAvailable && process.env.NODE_ENV === 'production') {
+      logger.info('AI service unavailable, using fallback resume parsing');
+      return this.fallbackParsedResume();
+    }
+
     try {
       const response = await this.client.post('/api/v1/parse-resume', {
         file_url: fileUrl,
         file_type: fileType,
       });
+      this.isAvailable = true;
       return response.data;
-    } catch (error) {
-      logger.error('AI resume parsing failed:', error);
+    } catch (error: any) {
+      logger.warn(`AI resume parsing failed: ${error.message}. Using fallback.`);
+      this.isAvailable = false;
       // Return basic fallback if AI service is down
       return this.fallbackParsedResume();
     }
@@ -116,14 +136,22 @@ class AIService {
       description: string;
     }
   ): Promise<MatchResult> {
+    // If AI service is known to be unavailable, skip API call
+    if (!this.isAvailable && process.env.NODE_ENV === 'production') {
+      logger.info('AI service unavailable, using fallback matching calculation');
+      return this.fallbackMatchResult(candidateData.skills, jobData.requiredSkills);
+    }
+
     try {
       const response = await this.client.post('/api/v1/match', {
         candidate: candidateData,
         job: jobData,
       });
+      this.isAvailable = true;
       return response.data;
-    } catch (error) {
-      logger.error('AI matching failed:', error);
+    } catch (error: any) {
+      logger.warn(`AI matching failed: ${error.message}. Using fallback calculation.`);
+      this.isAvailable = false;
       return this.fallbackMatchResult(candidateData.skills, jobData.requiredSkills);
     }
   }
