@@ -52,6 +52,24 @@ export default function PostJobPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!formData.title.trim()) {
+      toast.error('Job title is required');
+      return;
+    }
+    if (!formData.description.trim() || formData.description.length < 100) {
+      toast.error('Job description must be at least 100 characters');
+      return;
+    }
+    if (!formData.category) {
+      toast.error('Job category is required');
+      return;
+    }
+    if (!formData.requiredSkills.trim()) {
+      toast.error('At least one required skill is needed');
+      return;
+    }
+    
     // Parse skills from comma-separated string
     const skillsArray = formData.requiredSkills
       .split(',')
@@ -62,41 +80,56 @@ export default function PostJobPage() {
         isRequired: true 
       }));
 
-    // Parse requirements and responsibilities
+    // Parse requirements and responsibilities (only if provided)
     const requirementsArray = formData.requirements
-      .split('\n')
-      .map((r) => r.trim())
-      .filter((r) => r.length > 0);
+      ? formData.requirements
+          .split('\n')
+          .map((r) => r.trim())
+          .filter((r) => r.length > 0)
+      : [];
 
     const responsibilitiesArray = formData.responsibilities
-      .split('\n')
-      .map((r) => r.trim())
-      .filter((r) => r.length > 0);
+      ? formData.responsibilities
+          .split('\n')
+          .map((r) => r.trim())
+          .filter((r) => r.length > 0)
+      : [];
 
-    const payload = {
-      title: formData.title,
-      description: formData.description,
+    // Build the payload - only include fields that have values
+    const payload: any = {
+      title: formData.title.trim(),
+      description: formData.description.trim(),
       jobType: formData.jobType,
       experienceLevel: formData.experienceLevel,
       category: formData.category,
       location: {
-        city: formData.city,
-        country: formData.country,
+        city: formData.city.trim(),
+        country: formData.country.trim(),
         isRemote: formData.isRemote,
       },
-      salary: {
+      requiredSkills: skillsArray,
+      status: 'active',
+    };
+
+    // Add optional arrays only if they have items
+    if (requirementsArray.length > 0) {
+      payload.requirements = requirementsArray;
+    }
+    if (responsibilitiesArray.length > 0) {
+      payload.responsibilities = responsibilitiesArray;
+    }
+
+    // Add salary only if at least min or max is provided
+    if (formData.salaryMin || formData.salaryMax) {
+      payload.salary = {
         min: parseInt(formData.salaryMin) || 0,
         max: parseInt(formData.salaryMax) || 0,
         currency: 'ETB',
         period: 'monthly',
         isNegotiable: false,
         isVisible: true,
-      },
-      requiredSkills: skillsArray,
-      requirements: requirementsArray,
-      responsibilities: responsibilitiesArray,
-      status: 'active',
-    };
+      };
+    }
 
     console.log('Posting job with payload:', payload);
     postJobMutation.mutate(payload);
