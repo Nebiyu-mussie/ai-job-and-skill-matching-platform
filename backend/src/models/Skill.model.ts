@@ -40,7 +40,6 @@ const SkillSchema = new Schema<ISkill>(
 SkillSchema.index({ name: 'text', aliases: 'text' });
 SkillSchema.index({ category: 1 });
 SkillSchema.index({ demandScore: -1 });
-SkillSchema.index({ slug: 1 });
 
 SkillSchema.pre('save', function (next) {
   if (this.isModified('name')) {
