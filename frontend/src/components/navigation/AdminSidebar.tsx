@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Briefcase, ScrollText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Briefcase, ScrollText, LogOut, Home } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -28,13 +28,19 @@ export default function AdminSidebar() {
       )}
     >
       <div className="h-16 flex items-center justify-between px-4 border-b border-slate-700">
-        {sidebarOpen && (
-          <div className="flex items-center gap-2">
+        {sidebarOpen ? (
+          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
               <span className="text-white font-bold text-xs">AI</span>
             </div>
             <span className="font-bold text-sm">Admin Panel</span>
-          </div>
+          </Link>
+        ) : (
+          <Link to="/" className="hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <span className="text-white font-bold text-xs">AI</span>
+            </div>
+          </Link>
         )}
         <button onClick={toggleSidebar} className="ml-auto p-1.5 rounded-lg hover:bg-slate-700 transition-colors">
           <span className="sr-only">Toggle sidebar</span>
@@ -65,13 +71,25 @@ export default function AdminSidebar() {
         ))}
       </nav>
 
-      <div className="p-2 border-t border-slate-700">
+      <div className="p-2 border-t border-slate-700 space-y-0.5">
+        <Link
+          to="/"
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors',
+            !sidebarOpen && 'justify-center'
+          )}
+          title={!sidebarOpen ? 'Back to Home' : undefined}
+        >
+          <Home className="w-5 h-5 flex-shrink-0" />
+          {sidebarOpen && <span>Back to Home</span>}
+        </Link>
         <button
           onClick={() => logout()}
           className={cn(
             'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-900/20 transition-colors',
             !sidebarOpen && 'justify-center'
           )}
+          title={!sidebarOpen ? 'Sign Out' : undefined}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {sidebarOpen && <span>Sign Out</span>}
