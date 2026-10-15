@@ -65,12 +65,16 @@ export default function PostJobPage() {
       toast.error('Job category is required');
       return;
     }
+    if (!formData.city.trim()) {
+      toast.error('City is required');
+      return;
+    }
     if (!formData.requiredSkills.trim()) {
       toast.error('At least one required skill is needed');
       return;
     }
     
-    // Parse skills from comma-separated string
+    // Parse skills from comma-separated string - MUST NOT be empty
     const skillsArray = formData.requiredSkills
       .split(',')
       .map((s) => s.trim())
@@ -79,6 +83,11 @@ export default function PostJobPage() {
         name, 
         isRequired: true 
       }));
+
+    if (skillsArray.length === 0) {
+      toast.error('At least one skill is required');
+      return;
+    }
 
     // Parse requirements and responsibilities (only if provided)
     const requirementsArray = formData.requirements
@@ -95,23 +104,27 @@ export default function PostJobPage() {
           .filter((r) => r.length > 0)
       : [];
 
-    // Build the payload - only include fields that have values
+    // STRICT payload construction - ensure exact backend schema match
     const payload: any = {
       title: formData.title.trim(),
       description: formData.description.trim(),
+      // Ensure exact enum match - already correct from select values
       jobType: formData.jobType,
       experienceLevel: formData.experienceLevel,
-      category: formData.category,
+      category: formData.category.trim(),
+      // Location object is REQUIRED
       location: {
         city: formData.city.trim(),
         country: formData.country.trim(),
-        isRemote: formData.isRemote,
+        isRemote: Boolean(formData.isRemote),
       },
+      // requiredSkills array is REQUIRED and cannot be empty
       requiredSkills: skillsArray,
+      // Always set status
       status: 'active',
     };
 
-    // Add optional arrays only if they have items
+    // Add optional arrays - backend expects array or undefined, NOT empty array
     if (requirementsArray.length > 0) {
       payload.requirements = requirementsArray;
     }
@@ -120,10 +133,13 @@ export default function PostJobPage() {
     }
 
     // Add salary only if at least min or max is provided
-    if (formData.salaryMin || formData.salaryMax) {
+    const minSalary = formData.salaryMin ? parseInt(formData.salaryMin, 10) : 0;
+    const maxSalary = formData.salaryMax ? parseInt(formData.salaryMax, 10) : 0;
+    
+    if (minSalary > 0 || maxSalary > 0) {
       payload.salary = {
-        min: parseInt(formData.salaryMin) || 0,
-        max: parseInt(formData.salaryMax) || 0,
+        min: minSalary,
+        max: maxSalary,
         currency: 'ETB',
         period: 'monthly',
         isNegotiable: false,
@@ -131,7 +147,14 @@ export default function PostJobPage() {
       };
     }
 
-    console.log('Posting job with payload:', payload);
+    console.log('=== JOB POST PAYLOAD ===');
+    console.log('jobType:', payload.jobType, typeof payload.jobType);
+    console.log('experienceLevel:', payload.experienceLevel, typeof payload.experienceLevel);
+    console.log('location:', payload.location);
+    console.log('requiredSkills:', payload.requiredSkills);
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
+    console.log('======================');
+    
     postJobMutation.mutate(payload);
   };
 
