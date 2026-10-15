@@ -1,4 +1,4 @@
-import nodemailer, { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 import { logger } from './logger';
 
 interface EmailOptions {
@@ -9,53 +9,33 @@ interface EmailOptions {
 }
 
 class EmailService {
-  private transporter: Transporter | null = null;
+  private resend: Resend | null = null;
   private isConfigured: boolean = false;
   private isDevelopment: boolean = process.env.NODE_ENV === 'development';
 
   constructor() {
-    this.initializeTransporter();
+    this.initializeResend();
   }
 
-  private initializeTransporter(): void {
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpHost = process.env.SMTP_HOST;
+  private initializeResend(): void {
+    const resendApiKey = process.env.RESEND_API_KEY;
 
-    if (!smtpUser || !smtpPass) {
+    if (!resendApiKey) {
       logger.warn('⚠️  EMAIL SERVICE NOT CONFIGURED:');
-      logger.warn('   SMTP credentials are missing in environment variables.');
-      logger.warn('   Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, FROM_NAME, FROM_EMAIL');
+      logger.warn('   RESEND_API_KEY is missing in environment variables.');
+      logger.warn('   Required: RESEND_API_KEY, FROM_EMAIL');
       logger.warn('   Emails will be LOGGED TO CONSOLE in development mode.');
-      logger.warn('   Set these environment variables in Render for production email delivery.');
+      logger.warn('   Get your API key from https://resend.com/api-keys');
       this.isConfigured = false;
       return;
     }
 
     try {
-      const port = Number(process.env.SMTP_PORT) || 587;
-      
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost || 'smtp.gmail.com',
-        port: port,
-        secure: port === 465, // MUST be false for port 587 (STARTTLS)
-        auth: {
-          user: smtpUser.trim(),
-          pass: smtpPass.replace(/\s+/g, ''), // strip any spaces from app password
-        },
-        tls: {
-          rejectUnauthorized: false // avoids SSL certificate handshaking rejection on cloud hosts
-        },
-        // Prevent indefinite hangs on slow SMTP connections
-        connectionTimeout: 8000, // 8 seconds to establish connection
-        greetingTimeout: 8000,   // 8 seconds to receive greeting from server
-        socketTimeout: 10000,    // 10 seconds of inactivity
-      });
+      this.resend = new Resend(resendApiKey);
       this.isConfigured = true;
-      logger.info('✅ Email service configured successfully');
-      logger.info(`   Host: ${smtpHost || 'smtp.gmail.com'}, Port: ${port}, Secure: ${port === 465}`);
+      logger.info('✅ Email service configured successfully with Resend API');
     } catch (error) {
-      logger.error('❌ Failed to initialize email transporter:', error);
+      logger.error('❌ Failed to initialize Resend:', error);
       this.isConfigured = false;
     }
   }
@@ -64,14 +44,13 @@ class EmailService {
     console.log('🚨 Email.send() called!', { to: options.to, subject: options.subject });
     
     const mailOptions = {
-      from: `${process.env.FROM_NAME || 'AI Job Platform'} <${process.env.FROM_EMAIL || 'noreply@aijobplatform.com'}>`,
+      from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
       to: options.to,
       subject: options.subject,
       html: options.html,
-      text: options.text,
     };
 
-    // In development mode without SMTP config, log the email details
+    // In development mode without Resend API key, log the email details
     if (!this.isConfigured) {
       if (this.isDevelopment) {
         console.log('\n📧 ========== EMAIL (Development Mode - Not Sent) ==========');
@@ -108,21 +87,31 @@ class EmailService {
         
         logger.info('📧 ========================================================');
       } else {
-        logger.error('❌ Cannot send email: SMTP not configured in production environment');
-        logger.error('   Please set SMTP environment variables in Render dashboard');
+        logger.error('❌ Cannot send email: Resend API key not configured in production environment');
+        logger.error('   Please set RESEND_API_KEY environment variable in Render dashboard');
       }
       return;
     }
 
     try {
-      await this.transporter!.sendMail(mailOptions);
-      logger.info(`✅ Email sent successfully to ${options.to}`);
+      const { data, error } = await this.resend!.emails.send({
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log('📧 Email sent successfully via Resend API:', data);
+      logger.info(`✅ Email sent successfully via Resend API to ${options.to}`, data);
     } catch (error: any) {
-      // CRITICAL: Never crash the request on SMTP errors - log fallback link instead
-      console.error('❌ SMTP Dispatch Error:', error);
-      logger.error('❌ Email sending failed:', error.message);
-      logger.error('   Error code:', error.code);
-      logger.error('   Error command:', error.command);
+      // CRITICAL: Never crash the request on email dispatch errors
+      console.error('❌ Resend API Dispatch Error:', error);
+      logger.error('❌ Resend API sending failed:', error.message);
+      logger.error('   Error name:', error.name);
       
       // Extract and log action link as fallback
       const urlMatch = options.html.match(/href="([^"]+)"/);
