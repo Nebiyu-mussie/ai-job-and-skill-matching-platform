@@ -95,65 +95,81 @@ export default function PostJobPage() {
           .split('\n')
           .map((r) => r.trim())
           .filter((r) => r.length > 0)
-      : [];
+      : undefined;
 
     const responsibilitiesArray = formData.responsibilities
       ? formData.responsibilities
           .split('\n')
           .map((r) => r.trim())
           .filter((r) => r.length > 0)
-      : [];
+      : undefined;
 
-    // STRICT payload construction - ensure exact backend schema match
+    // Parse salary values - MUST be numbers, not strings
+    const minSalary = formData.salaryMin ? Number(formData.salaryMin) : 0;
+    const maxSalary = formData.salaryMax ? Number(formData.salaryMax) : 0;
+
+    // Build payload that EXACTLY matches Zod schema
     const payload: any = {
+      // Required string fields
       title: formData.title.trim(),
       description: formData.description.trim(),
-      // Ensure exact enum match - already correct from select values
+      category: formData.category.trim(),
+      
+      // Required enums (already correct from select values)
       jobType: formData.jobType,
       experienceLevel: formData.experienceLevel,
-      category: formData.category.trim(),
-      // Location object is REQUIRED
+      
+      // Required location object
       location: {
         city: formData.city.trim(),
         country: formData.country.trim(),
-        isRemote: Boolean(formData.isRemote),
+        isRemote: formData.isRemote, // Already boolean from checkbox
       },
-      // requiredSkills array is REQUIRED and cannot be empty
+      
+      // Required skills array (min 1 skill)
       requiredSkills: skillsArray,
-      // Always set status
-      status: 'active',
+      
+      // Status enum
+      status: 'active' as const,
     };
 
-    // Add optional arrays - backend expects array or undefined, NOT empty array
-    if (requirementsArray.length > 0) {
+    // Add optional arrays ONLY if they have content
+    if (requirementsArray && requirementsArray.length > 0) {
       payload.requirements = requirementsArray;
     }
-    if (responsibilitiesArray.length > 0) {
+    if (responsibilitiesArray && responsibilitiesArray.length > 0) {
       payload.responsibilities = responsibilitiesArray;
     }
 
-    // Add salary only if at least min or max is provided
-    const minSalary = formData.salaryMin ? parseInt(formData.salaryMin, 10) : 0;
-    const maxSalary = formData.salaryMax ? parseInt(formData.salaryMax, 10) : 0;
-    
+    // Add salary object ONLY if values are provided AND max >= min
     if (minSalary > 0 || maxSalary > 0) {
+      // Ensure max >= min as per Zod refine validation
+      const finalMin = minSalary;
+      const finalMax = maxSalary >= minSalary ? maxSalary : minSalary;
+      
       payload.salary = {
-        min: minSalary,
-        max: maxSalary,
+        min: finalMin,
+        max: finalMax,
         currency: 'ETB',
-        period: 'monthly',
+        period: 'monthly' as const,
         isNegotiable: false,
         isVisible: true,
       };
     }
 
-    console.log('=== JOB POST PAYLOAD ===');
-    console.log('jobType:', payload.jobType, typeof payload.jobType);
-    console.log('experienceLevel:', payload.experienceLevel, typeof payload.experienceLevel);
-    console.log('location:', payload.location);
-    console.log('requiredSkills:', payload.requiredSkills);
+    console.log('=== JOB POST PAYLOAD (Zod Schema Match) ===');
+    console.log('title:', payload.title, '(type:', typeof payload.title, ')');
+    console.log('category:', payload.category, '(type:', typeof payload.category, ')');
+    console.log('jobType:', payload.jobType, '(type:', typeof payload.jobType, ')');
+    console.log('experienceLevel:', payload.experienceLevel, '(type:', typeof payload.experienceLevel, ')');
+    console.log('location:', JSON.stringify(payload.location));
+    console.log('requiredSkills:', JSON.stringify(payload.requiredSkills));
+    if (payload.salary) {
+      console.log('salary.min:', payload.salary.min, '(type:', typeof payload.salary.min, ')');
+      console.log('salary.max:', payload.salary.max, '(type:', typeof payload.salary.max, ')');
+    }
     console.log('Full payload:', JSON.stringify(payload, null, 2));
-    console.log('======================');
+    console.log('==========================================');
     
     postJobMutation.mutate(payload);
   };
