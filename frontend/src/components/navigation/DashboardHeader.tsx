@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Search, Sun, Moon, Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
@@ -9,9 +9,24 @@ export default function DashboardHeader() {
   const { user } = useAuthStore();
   const { theme, setTheme, notificationCount, toggleSidebar } = useUIStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   const dashboardNotifHref =
     user?.role === 'employer' ? '/employer/notifications' : '/dashboard/notifications';
+
+  const handleSearch = () => {
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery) {
+      // Navigate to jobs page with search query
+      navigate(`/jobs?search=${encodeURIComponent(trimmedQuery)}`);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-20 h-16 flex items-center gap-4 px-4 md:px-6 bg-background/80 backdrop-blur-xl border-b border-border">
@@ -31,6 +46,7 @@ export default function DashboardHeader() {
             placeholder="Search jobs, candidates..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="w-full pl-9 pr-4 py-2 rounded-lg bg-muted/50 border border-transparent text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
           />
         </div>
