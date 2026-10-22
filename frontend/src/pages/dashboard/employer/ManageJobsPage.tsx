@@ -8,7 +8,7 @@ export default function ManageJobsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['employer-jobs'],
     queryFn: async () => {
-      const response = await api.get('/employers/jobs');
+      const response = await api.get('/jobs/employer/my-jobs');
       return response.data.data;
     },
   });
