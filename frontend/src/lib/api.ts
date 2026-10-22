@@ -64,6 +64,9 @@ const processQueue = (error: any, token: string | null = null) => {
 const handleAuthFailure = () => {
   const authStore = useAuthStore.getState();
   
+  // Set loading to false to prevent infinite spinners
+  authStore.setLoading(false);
+  
   // Clear all auth data
   authStore.logout();
   
@@ -71,8 +74,16 @@ const handleAuthFailure = () => {
   localStorage.clear();
   sessionStorage.clear();
   
-  // Redirect to login (only if not already there)
-  if (window.location.pathname !== '/login') {
+  // Clear the failed request queue to prevent retries
+  failedQueue = [];
+  isRefreshing = false;
+  
+  // Show user-friendly message
+  toast.error('Your session has expired. Please log in again.');
+  
+  // Forcefully redirect to login (only if not already there)
+  if (window.location.pathname !== '/login' && 
+      window.location.pathname !== '/register') {
     window.location.href = '/login';
   }
 };
@@ -148,11 +159,14 @@ api.interceptors.response.use(
 
       try {
         // Attempt to refresh the token
+        console.log('Attempting token refresh...');
         const response = await api.post('/auth/refresh-token');
         const { accessToken } = response.data.data;
 
         // Update token in store
         useAuthStore.getState().setAccessToken(accessToken);
+        
+        console.log('Token refresh successful');
         
         // Process queued requests
         processQueue(null, accessToken);
@@ -162,12 +176,18 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         }
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         // Token refresh failed - log out user
-        console.error('Token refresh failed, logging out:', refreshError);
+        console.error('Token refresh failed:', refreshError?.response?.status || refreshError?.message);
+        
+        // Process queued requests with error
         processQueue(refreshError, null);
+        
+        // Handle auth failure (clear state, redirect to login)
         handleAuthFailure();
-        return Promise.reject(refreshError);
+        
+        // Return rejected promise to stop any pending operations
+        return Promise.reject(new Error('Session expired. Please log in again.'));
       } finally {
         isRefreshing = false;
       }
