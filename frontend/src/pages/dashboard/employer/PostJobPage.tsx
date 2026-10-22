@@ -24,6 +24,14 @@ export default function PostJobPage() {
 
   const postJobMutation = useMutation({
     mutationFn: async (data: any) => {
+      // CRITICAL: Log exactly what we're about to send to the API
+      console.log('=== AXIOS REQUEST DATA (RIGHT BEFORE API CALL) ===');
+      console.log('Type of data:', typeof data);
+      console.log('Is data an object?', typeof data === 'object' && data !== null);
+      console.log('Data keys:', Object.keys(data));
+      console.log('Full data being sent:', JSON.stringify(data, null, 2));
+      console.log('================================================');
+      
       const response = await api.post('/jobs', data);
       return response.data;
     },

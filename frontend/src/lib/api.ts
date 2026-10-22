@@ -41,6 +41,18 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // DEBUG: Log job creation requests
+    if (config.url?.includes('/jobs') && config.method === 'post') {
+      console.log('=== AXIOS REQUEST INTERCEPTOR (JOBS POST) ===');
+      console.log('URL:', config.url);
+      console.log('Method:', config.method);
+      console.log('Headers:', config.headers);
+      console.log('Request Data Type:', typeof config.data);
+      console.log('Request Data:', JSON.stringify(config.data, null, 2));
+      console.log('============================================');
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)
