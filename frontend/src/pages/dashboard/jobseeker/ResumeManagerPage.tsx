@@ -20,18 +20,27 @@ export default function ResumeManagerPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('resume', file);
-      const res = await api.post('/resumes/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return res.data;
+      try {
+        const formData = new FormData();
+        formData.append('resume', file);
+        const res = await api.post('/resumes/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
+      } catch (error) {
+        console.error('Resume upload error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-resumes'] });
       toast.success('Resume uploaded! AI parsing in progress…');
     },
-    onError: (error: any) => toast.error(getErrorMessage(error)),
+    onError: (error: any) => {
+      console.error('Upload mutation error:', error);
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage || 'Failed to upload resume. Please try again.');
+    },
   });
 
   const deleteMutation = useMutation({

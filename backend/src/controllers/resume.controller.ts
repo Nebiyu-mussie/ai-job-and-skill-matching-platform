@@ -13,10 +13,19 @@ import { logger } from '../utils/logger';
 export const uploadResume = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.user) throw ApiError.unauthorized();
-    if (!req.file) throw ApiError.badRequest('No file uploaded');
+    
+    // Check if multer error occurred
+    if (!req.file) {
+      throw ApiError.badRequest('No file uploaded. Please select a PDF, DOC, or DOCX file.');
+    }
 
     const file = req.file as any;
     const fileType = file.originalname.split('.').pop()?.toLowerCase() as 'pdf' | 'doc' | 'docx';
+
+    // Validate file type
+    if (!['pdf', 'doc', 'docx'].includes(fileType)) {
+      throw ApiError.badRequest('Invalid file type. Only PDF, DOC, and DOCX files are allowed.');
+    }
 
     // Check max resumes per user (5)
     const resumeCount = await Resume.countDocuments({ user: req.user._id });
@@ -34,7 +43,7 @@ export const uploadResume = async (req: AuthRequest, res: Response, next: NextFu
       isDefault: resumeCount === 0, // First resume is default
     });
 
-    // Trigger async AI parsing
+    // Trigger async AI parsing (non-blocking)
     parseResumeAsync(resume._id.toString(), file.path, fileType, req.user._id.toString());
 
     ApiResponse.created(
@@ -43,6 +52,7 @@ export const uploadResume = async (req: AuthRequest, res: Response, next: NextFu
       'Resume uploaded successfully. Parsing in progress...'
     );
   } catch (error) {
+    logger.error('Resume upload error:', error);
     next(error);
   }
 };
