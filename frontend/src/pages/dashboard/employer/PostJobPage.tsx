@@ -40,13 +40,25 @@ export default function PostJobPage() {
       navigate('/employer/jobs');
     },
     onError: (error: any) => {
-      console.error('Job post error:', error?.response?.data);
+      console.error('=== JOB POST ERROR ===');
+      console.error('Full error object:', error);
+      console.error('Response data:', error?.response?.data);
+      console.error('Response status:', error?.response?.status);
+      console.error('====================');
       
       // Handle validation errors with field-specific messages
       const errors = error?.response?.data?.errors;
       if (errors && Array.isArray(errors)) {
-        errors.forEach((err: any) => {
-          const field = err.path ? err.path.join('.') : 'Field';
+        console.error('Validation errors count:', errors.length);
+        errors.forEach((err: any, index: number) => {
+          console.error(`Error ${index + 1}:`, {
+            field: err.field,
+            message: err.message,
+            path: err.path,
+            received: err.received,
+            expected: err.expected,
+          });
+          const field = err.field || (err.path ? err.path.join('.') : 'Field');
           toast.error(`${field}: ${err.message}`);
         });
       } else {
