@@ -320,7 +320,48 @@ export const getEmployerApplications = async (req: AuthRequest, res: Response, n
       Application.countDocuments(filter),
     ]);
 
-    ApiResponse.paginated(res, applications, buildPaginationMeta(total, page, limit));
+    // Fetch live match scores from MatchResult collection
+    const applicationsWithLiveScores = await Promise.all(
+      applications.map(async (app: any) => {
+        if (!app.applicant || !app.job) return app;
+
+        // Try to get the latest match result
+        const matchResult = await MatchResult.findOne({
+          user: app.applicant._id,
+          job: app.job._id,
+        })
+          .sort({ updatedAt: -1 })
+          .select('overallScore skillMatchScore updatedAt matchedSkills missingSkills')
+          .lean();
+
+        // Override with live match score if available
+        if (matchResult) {
+          return {
+            ...app,
+            matchScore: matchResult.overallScore,
+            liveMatchScore: matchResult.overallScore,
+            skillMatchScore: matchResult.skillMatchScore,
+            matchedSkills: matchResult.matchedSkills,
+            missingSkills: matchResult.missingSkills,
+            matchScoreUpdatedAt: matchResult.updatedAt,
+            isLiveScore: true,
+          };
+        }
+
+        // Return original if no match result found
+        return {
+          ...app,
+          isLiveScore: false,
+        };
+      })
+    );
+
+    // Re-sort by live match score if that was the sort criteria
+    if (sortBy === 'matchScore') {
+      applicationsWithLiveScores.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    }
+
+    ApiResponse.paginated(res, applicationsWithLiveScores, buildPaginationMeta(total, page, limit));
   } catch (error) {
     next(error);
   }
