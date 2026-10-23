@@ -21,9 +21,19 @@ export const getMatchScore = async (req: AuthRequest, res: Response, next: NextF
       job: jobId,
     }).populate('job', 'title employer requiredSkills');
 
+    // Check if cached match is still valid (user profile hasn't been updated since match calculation)
     if (cached) {
-      ApiResponse.success(res, { match: cached });
-return;
+      const userProfileUpdatedAt = req.user.updatedAt || req.user.createdAt;
+      const matchCalculatedAt = cached.updatedAt;
+      
+      const isStale = userProfileUpdatedAt > matchCalculatedAt;
+      
+      if (!isStale) {
+        ApiResponse.success(res, { match: cached });
+        return;
+      }
+      
+      // Match is stale, recalculate below
     }
 
     // Get job and calculate fresh score
@@ -100,10 +110,14 @@ export const getMyMatches = async (req: AuthRequest, res: Response, next: NextFu
       }),
     ]);
 
-    // Filter out closed/expired jobs
-    const activeMatches = matches.filter(
-      (m: any) => m.job && m.job.status === 'active'
-    );
+    // Filter out closed/expired jobs and mark stale matches for recalculation
+    const userProfileUpdatedAt = req.user.updatedAt || req.user.createdAt;
+    const activeMatches = matches
+      .filter((m: any) => m.job && m.job.status === 'active')
+      .map((m: any) => {
+        const isStale = userProfileUpdatedAt > m.updatedAt;
+        return { ...m, isStale };
+      });
 
     ApiResponse.paginated(res, activeMatches, buildPaginationMeta(total, page, limit));
   } catch (error) {

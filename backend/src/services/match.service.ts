@@ -255,16 +255,33 @@ class MatchService {
    */
   async calculateMatchOnView(userId: string, jobId: string): Promise<any> {
     try {
+      // Fetch user to check profile update timestamp
+      const user = await User.findById(userId);
+      if (!user) return null;
+
       // Check if match already exists
       const existing = await MatchResult.findOne({ user: userId, job: jobId });
 
       if (existing) {
-        // Check if it's older than 7 days, recalculate
+        const userProfileUpdatedAt = user.updatedAt || user.createdAt;
+        const matchCalculatedAt = existing.updatedAt;
+        
+        // Recalculate if user profile was updated after the match was calculated
+        const isStaleProfile = userProfileUpdatedAt > matchCalculatedAt;
+        
+        // Also recalculate if match is older than 7 days
         const isOld =
           new Date().getTime() - existing.updatedAt.getTime() > 7 * 24 * 60 * 60 * 1000;
 
-        if (!isOld) {
+        if (!isStaleProfile && !isOld) {
           return existing;
+        }
+        
+        // Log why we're recalculating
+        if (isStaleProfile) {
+          logger.info(`Recalculating match for user ${userId} and job ${jobId} - user profile updated`);
+        } else if (isOld) {
+          logger.info(`Recalculating match for user ${userId} and job ${jobId} - match older than 7 days`);
         }
       }
 
@@ -416,6 +433,31 @@ class MatchService {
       return result.deletedCount || 0;
     } catch (error) {
       logger.error('Failed to clear old matches:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Invalidate all matches for a user (when profile is significantly updated)
+   * This marks matches as needing recalculation by deleting non-essential cached matches
+   */
+  async invalidateUserMatches(userId: string, keepApplied: boolean = true): Promise<number> {
+    try {
+      const filter: any = { user: userId };
+      
+      // Optionally keep matches for jobs the user has applied to
+      if (keepApplied) {
+        filter.isApplied = false;
+      }
+
+      const result = await MatchResult.deleteMany(filter);
+
+      logger.info(
+        `Invalidated ${result.deletedCount} match results for user ${userId} (keepApplied: ${keepApplied})`
+      );
+      return result.deletedCount || 0;
+    } catch (error) {
+      logger.error('Failed to invalidate user matches:', error);
       return 0;
     }
   }
