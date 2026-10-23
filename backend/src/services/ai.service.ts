@@ -238,9 +238,15 @@ class AIService {
       return response.data;
     } catch (error) {
       logger.error('Skill gap analysis failed:', error);
+      
+      // Normalize skills for comparison
+      const normalizeSkill = (skill: string) => skill.trim().toLowerCase();
+      const userSkillsNormalized = userSkills.map(normalizeSkill);
+      
       const missing = targetJobSkills.filter(
-        (s) => !userSkills.map((u) => u.toLowerCase()).includes(s.toLowerCase())
+        (skill) => !userSkillsNormalized.includes(normalizeSkill(skill))
       );
+      
       return { missingSkills: missing, partialSkills: [], recommendations: [] };
     }
   }
@@ -261,13 +267,21 @@ class AIService {
     userSkills: string[],
     requiredSkills: string[]
   ): MatchResult {
-    const userSkillsLower = userSkills.map((s) => s.toLowerCase());
-    const matched = requiredSkills.filter((s) =>
-      userSkillsLower.includes(s.toLowerCase())
+    // Normalize skills: trim whitespace and convert to lowercase for comparison
+    const normalizeSkill = (skill: string) => skill.trim().toLowerCase();
+    
+    const userSkillsNormalized = userSkills.map(normalizeSkill);
+    const requiredSkillsNormalized = requiredSkills.map(normalizeSkill);
+    
+    // Find matched skills (case-insensitive, whitespace-trimmed)
+    const matched = requiredSkills.filter((skill, index) =>
+      userSkillsNormalized.includes(requiredSkillsNormalized[index])
     );
-    const missing = requiredSkills.filter(
-      (s) => !userSkillsLower.includes(s.toLowerCase())
+    
+    const missing = requiredSkills.filter((skill, index) =>
+      !userSkillsNormalized.includes(requiredSkillsNormalized[index])
     );
+    
     const skillScore = requiredSkills.length > 0 
       ? Math.round((matched.length / requiredSkills.length) * 100) 
       : 50;
