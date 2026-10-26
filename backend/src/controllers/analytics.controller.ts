@@ -152,7 +152,7 @@ async function getRecentActivity() {
     Application.find({ createdAt: { $gte: recent7Days } })
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate('user', 'firstName lastName')
+      .populate('applicant', 'firstName lastName')
       .populate('job', 'title')
       .select('status createdAt')
       .lean(),
@@ -171,7 +171,7 @@ async function getRecentActivity() {
     })),
     applications: recentApplications.map((a: any) => ({
       type: 'application_submitted',
-      description: `${a.user?.firstName} ${a.user?.lastName} applied to ${a.job?.title}`,
+      description: `${a.applicant?.firstName} ${a.applicant?.lastName} applied to ${a.job?.title}`,
       timestamp: a.createdAt,
     })),
   };
@@ -224,7 +224,7 @@ export const getEmployerAnalytics = async (req: AuthRequest, res: Response, next
       Application.find({ employer: employer._id })
         .sort({ createdAt: -1 })
         .limit(5)
-        .populate('user', 'firstName lastName profileImage')
+        .populate('applicant', 'firstName lastName profileImage')
         .populate('job', 'title')
         .lean(),
     ]);
