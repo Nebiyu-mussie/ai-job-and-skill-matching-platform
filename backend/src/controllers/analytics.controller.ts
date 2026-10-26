@@ -130,7 +130,21 @@ export const getEmployerAnalytics = async (req: AuthRequest, res: Response, next
     if (!req.user) throw ApiError.unauthorized();
 
     const employer = await Employer.findOne({ user: req.user._id });
-    if (!employer) throw ApiError.notFound('Employer profile not found');
+    if (!employer) {
+      // Return empty stats instead of error for new employers
+      ApiResponse.success(res, {
+        overview: {
+          totalJobs: 0,
+          totalApplications: 0,
+          avgMatchScore: 0,
+          totalViews: 0,
+        },
+        applicationsByStatus: [],
+        applicationsByJob: [],
+        applicationTrend: [],
+      });
+      return;
+    }
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
