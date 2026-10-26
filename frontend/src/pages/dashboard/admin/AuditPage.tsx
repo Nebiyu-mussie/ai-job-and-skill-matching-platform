@@ -63,19 +63,19 @@ export default function AdminAuditPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Audit Logs</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Audit Logs</h1>
         <div className="text-sm text-muted-foreground">
           {pagination?.total || logs.length} total logs
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <select
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
-          className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 w-full sm:w-auto"
         >
           <option value="">All Actions</option>
           <option value="create">Create</option>
@@ -87,7 +87,7 @@ export default function AdminAuditPage() {
         <select
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value)}
-          className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 w-full sm:w-auto"
         >
           <option value="">All Levels</option>
           <option value="info">Info</option>
@@ -110,57 +110,61 @@ export default function AdminAuditPage() {
               key={log._id}
               className={`border rounded-lg p-4 hover:shadow-md transition ${getLevelColor(log.level)} bg-card`}
             >
-              <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${getLevelColor(log.level)}`}>
+              <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                <div className={`p-2 rounded-lg ${getLevelColor(log.level)} flex-shrink-0 w-fit`}>
                   {getLevelIcon(log.level)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-foreground">{log.action}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded border ${getLevelColor(log.level)}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <p className="font-semibold text-foreground truncate">{log.action}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded border ${getLevelColor(log.level)} flex-shrink-0`}>
                           {log.level}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground truncate">
                         {log.resource}
                         {log.resourceId && ` • ID: ${log.resourceId.substring(0, 8)}...`}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-shrink-0">
                       <Clock className="h-4 w-4 flex-shrink-0" />
-                      <span>{formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}</span>
+                      <span className="whitespace-nowrap text-xs sm:text-sm">
+                        {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
                     {log.user && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <User className="h-4 w-4" />
-                        <span>
+                      <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                        <User className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">
                           {log.user.firstName} {log.user.lastName}
-                          <span className="text-xs ml-1">({log.user.email})</span>
+                          <span className="text-xs ml-1 hidden sm:inline">({log.user.email})</span>
                         </span>
                       </div>
                     )}
-                    {log.ipAddress && (
-                      <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
-                        {log.ipAddress}
-                      </span>
-                    )}
-                    {log.method && log.path && (
-                      <span className="text-xs text-muted-foreground">
-                        {log.method} {log.path}
-                      </span>
-                    )}
-                    {log.statusCode && (
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        log.statusCode < 400 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {log.statusCode}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {log.ipAddress && (
+                        <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
+                          {log.ipAddress}
+                        </span>
+                      )}
+                      {log.method && log.path && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {log.method} {log.path}
+                        </span>
+                      )}
+                      {log.statusCode && (
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          log.statusCode < 400 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {log.statusCode}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {log.details && Object.keys(log.details).length > 0 && (
@@ -168,7 +172,7 @@ export default function AdminAuditPage() {
                       <summary className="text-xs text-brand-600 cursor-pointer hover:underline">
                         View details
                       </summary>
-                      <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-x-auto">
+                      <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-x-auto max-w-full">
                         {JSON.stringify(log.details, null, 2)}
                       </pre>
                     </details>

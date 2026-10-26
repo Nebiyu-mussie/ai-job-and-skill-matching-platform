@@ -78,15 +78,15 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Manage Users</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Manage Users</h1>
         <div className="text-sm text-muted-foreground">
           {pagination?.total || 0} total users
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -100,7 +100,7 @@ export default function AdminUsersPage() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 w-full sm:w-auto"
         >
           <option value="">All Roles</option>
           <option value="jobseeker">Job Seekers</option>
@@ -117,20 +117,20 @@ export default function AdminUsersPage() {
       ) : (
         <div className="space-y-4">
           {users.map((user: any) => (
-            <div key={user._id} className="border border-border rounded-lg p-6 hover:shadow-lg transition bg-card">
-              <div className="flex items-center justify-between">
+            <div key={user._id} className="border border-border rounded-lg p-4 sm:p-6 hover:shadow-lg transition bg-card">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white">
+                  <div className="w-12 h-12 flex-shrink-0 rounded-full bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white">
                     {user.profileImage ? (
                       <img src={user.profileImage} alt="" className="w-full h-full rounded-full object-cover" />
                     ) : (
                       <span className="text-xl font-bold">{user.firstName?.[0]?.toUpperCase()}</span>
                     )}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{user.firstName} {user.lastName}</h3>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-foreground truncate">{user.firstName} {user.lastName}</h3>
+                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs bg-brand-100 text-brand-700 px-2 py-1 rounded capitalize">
                         {user.role}
                       </span>
@@ -146,7 +146,7 @@ export default function AdminUsersPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 sm:flex-shrink-0">
                   {user.role !== 'admin' && (
                     <button
                       onClick={() => handleBanToggle(user)}

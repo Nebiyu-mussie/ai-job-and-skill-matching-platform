@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
 import {
   LayoutDashboard, User, FileText, Briefcase, Bookmark, Target,
   TrendingUp, Lightbulb, MessageSquare, Bell, LogOut, ChevronLeft,
-  ChevronRight, PlusCircle, Users, BarChart3, Settings, Home,
+  ChevronRight, PlusCircle, Users, BarChart3, Settings, Home, X, Menu,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
@@ -35,7 +36,7 @@ const employerLinks = [
 
 export default function DashboardSidebar() {
   const { user } = useAuthStore();
-  const { sidebarOpen, toggleSidebar } = useUIStore();
+  const { sidebarOpen, toggleSidebar, setSidebarOpen } = useUIStore();
   const { logout } = useAuth();
   const location = useLocation();
 
@@ -46,52 +47,62 @@ export default function DashboardSidebar() {
     return location.pathname.startsWith(href);
   };
 
+  // Auto-close sidebar on mobile when route changes
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname, setSidebarOpen]);
+
   return (
     <>
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
 
+      {/* Mobile: slide-in drawer, Desktop: collapsible sidebar */}
       <motion.aside
-        animate={{ width: sidebarOpen ? 256 : 80 }}
+        initial={false}
+        animate={{
+          x: sidebarOpen ? 0 : window.innerWidth < 1024 ? -256 : 0,
+          width: window.innerWidth < 1024 ? 256 : (sidebarOpen ? 256 : 80)
+        }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="fixed left-0 top-0 bottom-0 z-30 flex flex-col bg-card border-r border-border overflow-hidden"
+        className="fixed left-0 top-0 bottom-0 z-50 lg:z-30 flex flex-col bg-card border-r border-border overflow-hidden w-64 lg:w-auto"
       >
         {/* Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-border flex-shrink-0">
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2.5 overflow-hidden"
-              >
-                <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-xs">AI</span>
-                  </div>
-                  <span className="font-bold text-sm text-foreground whitespace-nowrap">AI Job Platform</span>
-                </Link>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {!sidebarOpen && (
-            <Link to="/" className="hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-xs">AI</span>
-              </div>
-            </Link>
-          )}
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xs">AI</span>
+            </div>
+            <AnimatePresence>
+              {sidebarOpen && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="font-bold text-sm text-foreground whitespace-nowrap"
+                >
+                  AI Job Platform
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+          
+          {/* Mobile: X button, Desktop: collapse toggle */}
           <button
             onClick={toggleSidebar}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors flex-shrink-0 ml-auto"
           >
-            {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <X className="w-4 h-4 lg:hidden" />
+            <span className="hidden lg:block">
+              {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </span>
           </button>
         </div>
 

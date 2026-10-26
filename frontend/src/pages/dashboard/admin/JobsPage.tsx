@@ -54,8 +54,8 @@ export default function AdminJobsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Manage Jobs</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Manage Jobs</h1>
         <div className="text-sm text-muted-foreground">
           {pagination?.total || jobs.length} total jobs
         </div>
@@ -70,22 +70,22 @@ export default function AdminJobsPage() {
       ) : (
         <div className="space-y-4">
           {jobs.map((job: any) => (
-            <div key={job._id} className="border border-border rounded-lg p-6 hover:shadow-lg transition bg-card">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
+            <div key={job._id} className="border border-border rounded-lg p-4 sm:p-6 hover:shadow-lg transition bg-card">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white flex-shrink-0">
                       <Briefcase className="h-6 w-6" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-foreground mb-1">{job.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-foreground mb-1 truncate">{job.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-2 truncate">
                         {job.employer?.companyName || 'Unknown Company'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4 flex-shrink-0" />
                       <span className="truncate">{job.location?.city || 'Remote'}</span>
@@ -110,7 +110,7 @@ export default function AdminJobsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs px-2 py-1 rounded font-medium ${
                       job.status === 'active' 
                         ? 'bg-green-100 text-green-700' 
@@ -129,7 +129,7 @@ export default function AdminJobsPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 lg:flex-shrink-0">
                   <Link
                     to={`/jobs/${job._id}`}
                     className="p-2 border border-border rounded-lg hover:bg-accent transition"

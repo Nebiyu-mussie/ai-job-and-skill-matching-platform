@@ -14,6 +14,7 @@ export default function DashboardLayout() {
       <div
         className={cn(
           'flex-1 flex flex-col min-w-0 transition-all duration-300',
+          // No margin on mobile, responsive margin on desktop
           sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
         )}
       >
