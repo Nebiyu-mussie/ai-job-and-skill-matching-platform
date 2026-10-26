@@ -148,8 +148,12 @@ class ResumeParserService {
    */
   async parseResume(fileUrl: string, fileType: string): Promise<ParsedResume> {
     try {
+      logger.info(`Starting resume parsing: ${fileUrl}, type: ${fileType}`);
+      
       // Extract text from file
       const extractedText = await this.extractText(fileUrl, fileType);
+      
+      logger.info(`Text extracted. Length: ${extractedText?.length || 0} characters`);
       
       if (!extractedText || extractedText.trim().length < 50) {
         logger.warn('Insufficient text extracted from resume');
@@ -160,6 +164,12 @@ class ResumeParserService {
       const parsed = this.parseExtractedText(extractedText);
       
       logger.info(`Resume parsed: ${parsed.skills.length} skills, ${parsed.experience.length} experiences found`);
+      
+      if (parsed.skills.length > 0) {
+        logger.info(`First 10 skills: ${parsed.skills.slice(0, 10).map(s => s.name).join(', ')}`);
+      } else {
+        logger.warn(`No skills extracted! Text preview: ${extractedText.substring(0, 200)}`);
+      }
       
       return parsed;
     } catch (error) {
@@ -287,6 +297,8 @@ class ResumeParserService {
     const foundSkills = new Set<string>();
     const skillsWithCategory: Array<{ name: string; category?: string; level?: string }> = [];
 
+    logger.info(`Extracting skills from text of length ${text.length}`);
+
     // Check each category
     Object.entries(SKILL_KEYWORDS).forEach(([category, keywords]) => {
       keywords.forEach(keyword => {
@@ -306,6 +318,8 @@ class ResumeParserService {
       });
     });
 
+    logger.info(`Found ${skillsWithCategory.length} technical skills`);
+
     // Also check for soft skills
     SOFT_SKILLS.forEach(skill => {
       const regex = new RegExp(`\\b${skill}\\b`, 'gi');
@@ -321,6 +335,8 @@ class ResumeParserService {
         }
       }
     });
+
+    logger.info(`Total skills found (including soft skills): ${skillsWithCategory.length}`);
 
     return skillsWithCategory;
   }

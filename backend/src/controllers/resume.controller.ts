@@ -64,7 +64,14 @@ const parseResumeAsync = async (
   userId: string
 ): Promise<void> => {
   try {
+    logger.info(`Starting resume parsing for user ${userId}, resume ${resumeId}`);
+    
     const parsedData = await aiService.parseResume(fileUrl, fileType);
+    
+    logger.info(`Resume parsing completed. Skills found: ${parsedData.skills?.length || 0}`);
+    if (parsedData.skills?.length > 0) {
+      logger.info(`Sample skills: ${parsedData.skills.slice(0, 5).map(s => s.name).join(', ')}`);
+    }
 
     await Resume.findByIdAndUpdate(resumeId, {
       parsedData,
@@ -75,28 +82,50 @@ const parseResumeAsync = async (
     // Update user profile with extracted data
     if (parsedData.skills?.length > 0) {
       const user = await User.findById(userId);
-      if (user) {
-        // Merge new skills with existing skills (avoid duplicates)
-        const existingSkillNames = new Set(
-          user.skills.map(s => s.name.toLowerCase())
+      if (!user) {
+        logger.error(`User ${userId} not found when trying to save skills`);
+        return;
+      }
+      
+      logger.info(`Current user skills count: ${user.skills.length}`);
+      
+      // Merge new skills with existing skills (avoid duplicates)
+      const existingSkillNames = new Set(
+        user.skills.map(s => s.name.toLowerCase())
+      );
+      
+      const newSkills = parsedData.skills
+        .filter(s => s.name && s.name.trim().length > 0) // Ensure skill has a name
+        .filter(s => !existingSkillNames.has(s.name.toLowerCase()))
+        .map(s => ({
+          name: s.name,
+          level: (s.level as 'beginner' | 'intermediate' | 'advanced' | 'expert') || 'intermediate',
+          yearsOfExperience: undefined,
+        }));
+
+      logger.info(`New skills to add: ${newSkills.length}`);
+
+      if (newSkills.length > 0) {
+        logger.info(`Adding skills: ${newSkills.map(s => s.name).join(', ')}`);
+        
+        const updatedUser = await User.findByIdAndUpdate(
+          userId, 
+          {
+            $push: { skills: { $each: newSkills } },
+          },
+          { new: true } // Return the updated document
         );
         
-        const newSkills = parsedData.skills
-          .filter(s => !existingSkillNames.has(s.name.toLowerCase()))
-          .map(s => ({
-            name: s.name,
-            level: (s.level as 'beginner' | 'intermediate' | 'advanced' | 'expert') || 'intermediate',
-            yearsOfExperience: undefined,
-          }));
-
-        if (newSkills.length > 0) {
-          await User.findByIdAndUpdate(userId, {
-            $push: { skills: { $each: newSkills } },
-          });
-          
-          logger.info(`Added ${newSkills.length} new skills to user ${userId} profile`);
+        if (updatedUser) {
+          logger.info(`Successfully added ${newSkills.length} skills. Total user skills now: ${updatedUser.skills.length}`);
+        } else {
+          logger.error(`Failed to update user ${userId} with new skills`);
         }
+      } else {
+        logger.info(`No new skills to add (${parsedData.skills.length} skills extracted but all are duplicates or invalid)`);
       }
+    } else {
+      logger.warn(`No skills extracted from resume ${resumeId}`);
     }
 
     // Notify user
