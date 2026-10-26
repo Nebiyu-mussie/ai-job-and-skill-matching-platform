@@ -1,36 +1,101 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import api from '@/lib/api';
-import { Briefcase, Users, FileText, TrendingUp, AlertCircle } from 'lucide-react';
+import { Briefcase, Users, FileText, TrendingUp, AlertCircle, LogIn } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useAuthStore } from '@/store/authStore';
 
 export default function EmployerDashboard() {
+  const navigate = useNavigate();
+  const { logout } = useAuthStore();
+  
   const { data: stats, isLoading, isError, error } = useQuery({
     queryKey: ['employer-stats'],
     queryFn: async () => {
-      const response = await api.get('/analytics/employer');
-      return response.data.data;
+      try {
+        const response = await api.get('/analytics/employer');
+        return response.data.data;
+      } catch (err: any) {
+        // If it's a 401 error, log out and redirect
+        if (err?.response?.status === 401) {
+          console.error('401 Unauthorized on employer dashboard');
+          logout();
+          navigate('/login', { replace: true });
+          throw new Error('Session expired. Please log in again.');
+        }
+        throw err;
+      }
     },
-    retry: 2,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 errors
+      if (error?.response?.status === 401) {
+        return false;
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2;
+    },
     refetchOnWindowFocus: false,
+    // Set a stale time to avoid unnecessary refetches
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Handle auth errors by redirecting to login
+  useEffect(() => {
+    if (isError && error) {
+      const errorMessage = (error as any)?.message || '';
+      const is401 = (error as any)?.response?.status === 401 || 
+                    errorMessage.includes('Session expired') ||
+                    errorMessage.includes('Unauthorized');
+      
+      if (is401) {
+        console.log('Auth error detected, redirecting to login...');
+        logout();
+        navigate('/login', { replace: true });
+      }
+    }
+  }, [isError, error, logout, navigate]);
 
   if (isLoading) return <LoadingSpinner fullScreen />;
 
   if (isError) {
+    const errorMessage = (error as any)?.message || 'Unable to fetch analytics data';
+    const is401 = (error as any)?.response?.status === 401 || 
+                  errorMessage.includes('Session expired') ||
+                  errorMessage.includes('Unauthorized');
+
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Failed to Load Dashboard</h3>
-          <p className="text-muted-foreground mb-4">
-            {error instanceof Error ? error.message : 'Unable to fetch analytics data'}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
-          >
-            Retry
-          </button>
+          {is401 ? (
+            <>
+              <LogIn className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Session Expired</h3>
+              <p className="text-muted-foreground mb-4">
+                Your session has expired. Please log in again.
+              </p>
+              <button
+                onClick={() => navigate('/login', { replace: true })}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+              >
+                Go to Login
+              </button>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Failed to Load Dashboard</h3>
+              <p className="text-muted-foreground mb-4">
+                {errorMessage}
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+              >
+                Retry
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
