@@ -1,18 +1,16 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Search, Sun, Moon, Menu } from 'lucide-react';
+import { Search, Sun, Moon, Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import NotificationBell from './NotificationBell';
 
 export default function DashboardHeader() {
   const { user } = useAuthStore();
-  const { theme, setTheme, notificationCount, toggleSidebar } = useUIStore();
+  const { theme, setTheme, toggleSidebar } = useUIStore();
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-
-  const dashboardNotifHref =
-    user?.role === 'employer' ? '/employer/notifications' : '/dashboard/notifications';
 
   const handleSearch = () => {
     const trimmedQuery = searchQuery.trim();
@@ -60,17 +58,7 @@ export default function DashboardHeader() {
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        <Link
-          to={dashboardNotifHref}
-          className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-accent transition-colors"
-        >
-          <Bell className="w-4 h-4" />
-          {notificationCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </span>
-          )}
-        </Link>
+        <NotificationBell />
 
         {/* Breadcrumb / Page title area on mobile */}
         <div className="md:hidden text-sm font-medium text-foreground truncate max-w-32">

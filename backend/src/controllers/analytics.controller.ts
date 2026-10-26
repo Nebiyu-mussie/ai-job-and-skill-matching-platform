@@ -1,124 +1,209 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User.model';
+import { Employer } from '../models/Employer.model';
 import { Job } from '../models/Job.model';
 import { Application } from '../models/Application.model';
-import { Employer } from '../models/Employer.model';
 import { MatchResult } from '../models/MatchResult.model';
+import { Notification } from '../models/Notification.model';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { AuthRequest } from '../middleware/auth.middleware';
+import mongoose from 'mongoose';
 
 export const getAdminAnalytics = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.user || req.user.role !== 'admin') throw ApiError.forbidden();
 
+    const now = new Date();
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Execute all queries in parallel
     const [
       totalUsers,
-      totalJobSeekers,
+      activeUsers,
+      newUsers,
       totalEmployers,
-      totalJobs,
-      activeJobs,
-      totalApplications,
-      totalHires,
       verifiedEmployers,
+      pendingEmployers,
+      activeJobs,
+      totalJobs,
+      newJobs,
+      totalApplications,
+      pendingApplications,
+      newApplications,
+      totalMatches,
+      avgMatchScore,
+      dbStats,
+      usersByRole,
+      applicationsByStatus,
+      recentActivity,
     ] = await Promise.all([
       User.countDocuments({ isActive: true }),
-      User.countDocuments({ role: 'jobseeker', isActive: true }),
-      User.countDocuments({ role: 'employer', isActive: true }),
-      Job.countDocuments(),
+      User.countDocuments({ isActive: true, lastLogin: { $gte: last30Days } }),
+      User.countDocuments({ createdAt: { $gte: last30Days } }),
+      Employer.countDocuments({ isActive: true }),
+      Employer.countDocuments({ isVerified: true, isActive: true }),
+      Employer.countDocuments({ isVerified: false, isActive: true }),
       Job.countDocuments({ status: 'active' }),
+      Job.countDocuments(),
+      Job.countDocuments({ createdAt: { $gte: last30Days } }),
       Application.countDocuments(),
-      Application.countDocuments({ status: 'hired' }),
-      Employer.countDocuments({ isVerified: true }),
-    ]);
-
-    // Monthly trends (last 12 months)
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-
-    const [userTrend, jobTrend, applicationTrend] = await Promise.all([
+      Application.countDocuments({ status: 'pending' }),
+      Application.countDocuments({ createdAt: { $gte: last7Days } }),
+      MatchResult.countDocuments(),
+      MatchResult.aggregate([
+        { $group: { _id: null, avgScore: { $avg: '$matchScore' } } },
+      ]).then((result) => Math.round(result[0]?.avgScore || 0)),
+      mongoose.connection.db?.stats(),
       User.aggregate([
-        { $match: { createdAt: { $gte: twelveMonthsAgo } } },
-        {
-          $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { '_id.year': 1, '_id.month': 1 } },
-      ]),
-      Job.aggregate([
-        { $match: { createdAt: { $gte: twelveMonthsAgo } } },
-        {
-          $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { '_id.year': 1, '_id.month': 1 } },
+        { $group: { _id: '$role', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
       ]),
       Application.aggregate([
-        { $match: { createdAt: { $gte: twelveMonthsAgo } } },
-        {
-          $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { '_id.year': 1, '_id.month': 1 } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
       ]),
+      getRecentActivity(),
     ]);
 
-    // Top job categories
-    const topCategories = await Job.aggregate([
-      { $match: { status: 'active' } },
-      { $group: { _id: '$category', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 10 },
+    // Calculate growth rates
+    const usersLast30 = newUsers;
+    const jobsLast30 = newJobs;
+    const applicationsLast7 = newApplications;
+
+    // Database health
+    const dbHealth = {
+      status: dbStats ? 'healthy' : 'unknown',
+      size: dbStats ? (dbStats.dataSize / 1024 / 1024).toFixed(2) + ' MB' : 'unknown',
+      collections: dbStats ? dbStats.collections : 0,
+      documents: dbStats ? dbStats.objects : 0,
+      indexes: dbStats ? dbStats.indexes : 0,
+      indexSize: dbStats ? (dbStats.indexSize / 1024 / 1024).toFixed(2) + ' MB' : 'unknown',
+    };
+
+    const analytics = {
+      users: {
+        total: totalUsers,
+        active: activeUsers,
+        new: usersLast30,
+        growth: usersLast30,
+        byRole: usersByRole.reduce((acc: any, item: any) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {}),
+      },
+      employers: {
+        total: totalEmployers,
+        verified: verifiedEmployers,
+        pending: pendingEmployers,
+        verificationRate: totalEmployers > 0 ? Math.round((verifiedEmployers / totalEmployers) * 100) : 0,
+      },
+      jobs: {
+        total: totalJobs,
+        active: activeJobs,
+        new: jobsLast30,
+        growth: jobsLast30,
+      },
+      applications: {
+        total: totalApplications,
+        pending: pendingApplications,
+        recent: applicationsLast7,
+        byStatus: applicationsByStatus.reduce((acc: any, item: any) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {}),
+      },
+      matching: {
+        totalMatches,
+        avgMatchScore,
+      },
+      database: dbHealth,
+      recentActivity,
+      summary: {
+        totalUsers,
+        totalEmployers,
+        activeJobs,
+        totalApplications,
+      },
+    };
+
+    ApiResponse.success(res, analytics, 'Admin analytics retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+async function getRecentActivity() {
+  const recent7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [recentUsers, recentJobs, recentApplications] = await Promise.all([
+    User.find({ createdAt: { $gte: recent7Days } })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('firstName lastName email role createdAt')
+      .lean(),
+    Job.find({ createdAt: { $gte: recent7Days } })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('employer', 'companyName')
+      .select('title status createdAt')
+      .lean(),
+    Application.find({ createdAt: { $gte: recent7Days } })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('user', 'firstName lastName')
+      .populate('job', 'title')
+      .select('status createdAt')
+      .lean(),
+  ]);
+
+  return {
+    users: recentUsers.map((u) => ({
+      type: 'user_registration',
+      description: `${u.firstName} ${u.lastName} (${u.role}) joined`,
+      timestamp: u.createdAt,
+    })),
+    jobs: recentJobs.map((j: any) => ({
+      type: 'job_posted',
+      description: `${j.title} posted by ${j.employer?.companyName || 'Unknown'}`,
+      timestamp: j.createdAt,
+    })),
+    applications: recentApplications.map((a: any) => ({
+      type: 'application_submitted',
+      description: `${a.user?.firstName} ${a.user?.lastName} applied to ${a.job?.title}`,
+      timestamp: a.createdAt,
+    })),
+  };
+}
+
+export const getJobseekerAnalytics = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) throw ApiError.unauthorized();
+
+    const userId = req.user._id;
+
+    const [applications, savedJobs, matches, notifications] = await Promise.all([
+      Application.countDocuments({ user: userId }),
+      require('../models/Bookmark.model').Bookmark.countDocuments({ user: userId }),
+      MatchResult.countDocuments({ user: userId }),
+      Notification.countDocuments({ recipient: userId, isRead: false }),
     ]);
 
-    // Top skills in demand
-    const topSkills = await Job.aggregate([
-      { $match: { status: 'active' } },
-      { $unwind: '$requiredSkills' },
-      { $group: { _id: '$requiredSkills.name', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 20 },
-    ]);
-
-    // Average match scores
-    const avgMatchScore = await MatchResult.aggregate([
-      { $group: { _id: null, avg: { $avg: '$overallScore' } } },
-    ]);
-
-    // Application status distribution
-    const applicationStatusDist = await Application.aggregate([
+    const applicationsByStatus = await Application.aggregate([
+      { $match: { user: userId } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
 
     ApiResponse.success(res, {
-      overview: {
-        totalUsers,
-        totalJobSeekers,
-        totalEmployers,
-        totalJobs,
-        activeJobs,
-        totalApplications,
-        totalHires,
-        verifiedEmployers,
-        avgMatchScore: avgMatchScore[0]?.avg?.toFixed(1) || 0,
-        hiringRate: totalApplications > 0
-          ? ((totalHires / totalApplications) * 100).toFixed(1)
-          : 0,
-      },
-      trends: {
-        users: userTrend,
-        jobs: jobTrend,
-        applications: applicationTrend,
-      },
-      topCategories,
-      topSkills,
-      applicationStatusDist,
+      applications,
+      savedJobs,
+      matches,
+      unreadNotifications: notifications,
+      applicationsByStatus: applicationsByStatus.reduce((acc: any, item: any) => {
+        acc[item._id] = item.count;
+        return acc;
+      }, {}),
     });
   } catch (error) {
     next(error);
@@ -130,152 +215,25 @@ export const getEmployerAnalytics = async (req: AuthRequest, res: Response, next
     if (!req.user) throw ApiError.unauthorized();
 
     const employer = await Employer.findOne({ user: req.user._id });
-    if (!employer) {
-      // Return empty stats instead of error for new employers
-      ApiResponse.success(res, {
-        overview: {
-          totalJobs: 0,
-          totalApplications: 0,
-          avgMatchScore: 0,
-          totalViews: 0,
-        },
-        applicationsByStatus: [],
-        applicationsByJob: [],
-        applicationTrend: [],
-      });
-      return;
-    }
+    if (!employer) throw ApiError.notFound('Employer profile not found');
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const [
-      totalJobs,
-      totalApplications,
-      avgMatchScore,
-      applicationsByStatus,
-      applicationsByJob,
-      applicationTrend,
-      viewsTrend,
-    ] = await Promise.all([
-      Job.countDocuments({ employer: employer._id }),
+    const [activeJobs, totalApplications, pendingApplications, recentApplications] = await Promise.all([
+      Job.countDocuments({ employer: employer._id, status: 'active' }),
       Application.countDocuments({ employer: employer._id }),
-      Application.aggregate([
-        { $match: { employer: employer._id, matchScore: { $exists: true } } },
-        { $group: { _id: null, avg: { $avg: '$matchScore' } } },
-      ]),
-      Application.aggregate([
-        { $match: { employer: employer._id } },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ]),
-      Application.aggregate([
-        { $match: { employer: employer._id } },
-        {
-          $lookup: {
-            from: 'jobs',
-            localField: 'job',
-            foreignField: '_id',
-            as: 'jobInfo',
-          },
-        },
-        { $unwind: '$jobInfo' },
-        {
-          $group: {
-            _id: { jobId: '$job', title: '$jobInfo.title' },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { count: -1 } },
-        { $limit: 10 },
-      ]),
-      Application.aggregate([
-        {
-          $match: {
-            employer: employer._id,
-            appliedAt: { $gte: thirtyDaysAgo },
-          },
-        },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$appliedAt' } },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { _id: 1 } },
-      ]),
-      Job.aggregate([
-        { $match: { employer: employer._id } },
-        { $group: { _id: null, totalViews: { $sum: '$viewCount' } } },
-      ]),
-    ]);
-
-    ApiResponse.success(res, {
-      overview: {
-        totalJobs,
-        totalApplications,
-        avgMatchScore: avgMatchScore[0]?.avg?.toFixed(1) || 0,
-        totalViews: viewsTrend[0]?.totalViews || 0,
-      },
-      applicationsByStatus,
-      applicationsByJob,
-      applicationTrend,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getJobSeekerAnalytics = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    if (!req.user) throw ApiError.unauthorized();
-
-    const [
-      totalApplications,
-      applicationsByStatus,
-      avgMatchScore,
-      applicationTrend,
-      topMatchedJobs,
-    ] = await Promise.all([
-      Application.countDocuments({ applicant: req.user._id }),
-      Application.aggregate([
-        { $match: { applicant: req.user._id } },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-      ]),
-      MatchResult.aggregate([
-        { $match: { user: req.user._id } },
-        { $group: { _id: null, avg: { $avg: '$overallScore' } } },
-      ]),
-      Application.aggregate([
-        {
-          $match: {
-            applicant: req.user._id,
-            appliedAt: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
-          },
-        },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$appliedAt' } },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { _id: 1 } },
-      ]),
-      MatchResult.find({ user: req.user._id })
-        .sort({ overallScore: -1 })
+      Application.countDocuments({ employer: employer._id, status: 'pending' }),
+      Application.find({ employer: employer._id })
+        .sort({ createdAt: -1 })
         .limit(5)
-        .populate('job', 'title location jobType')
+        .populate('user', 'firstName lastName profileImage')
+        .populate('job', 'title')
         .lean(),
     ]);
 
     ApiResponse.success(res, {
-      overview: {
-        totalApplications,
-        avgMatchScore: avgMatchScore[0]?.avg?.toFixed(1) || 0,
-      },
-      applicationsByStatus,
-      applicationTrend,
-      topMatchedJobs,
+      activeJobs,
+      totalApplications,
+      pendingApplications,
+      recentApplications,
     });
   } catch (error) {
     next(error);

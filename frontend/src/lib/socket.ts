@@ -50,6 +50,9 @@ export const initializeSocket = (token: string): Socket => {
     console.log(`🔄 Socket.io reconnected after ${attemptNumber} attempts`);
   });
 
+  // Expose socket globally for components to access
+  (window as any).__socket__ = socket;
+
   return socket;
 };
 
