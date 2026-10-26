@@ -75,14 +75,27 @@ const parseResumeAsync = async (
     // Update user profile with extracted data
     if (parsedData.skills?.length > 0) {
       const user = await User.findById(userId);
-      if (user && user.skills.length === 0) {
-        const skills = parsedData.skills.map((s) => ({
-          name: s.name,
-          level: (s.level as any) || 'intermediate',
-        }));
-        await User.findByIdAndUpdate(userId, {
-          $addToSet: { skills: { $each: skills } },
-        });
+      if (user) {
+        // Merge new skills with existing skills (avoid duplicates)
+        const existingSkillNames = new Set(
+          user.skills.map(s => s.name.toLowerCase())
+        );
+        
+        const newSkills = parsedData.skills
+          .filter(s => !existingSkillNames.has(s.name.toLowerCase()))
+          .map(s => ({
+            name: s.name,
+            level: (s.level as 'beginner' | 'intermediate' | 'advanced' | 'expert') || 'intermediate',
+            yearsOfExperience: undefined,
+          }));
+
+        if (newSkills.length > 0) {
+          await User.findByIdAndUpdate(userId, {
+            $push: { skills: { $each: newSkills } },
+          });
+          
+          logger.info(`Added ${newSkills.length} new skills to user ${userId} profile`);
+        }
       }
     }
 

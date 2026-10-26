@@ -98,10 +98,11 @@ class AIService {
   }
 
   async parseResume(fileUrl: string, fileType: string): Promise<ParsedResume> {
-    // If AI service is known to be unavailable, skip API call
+    // If AI service is known to be unavailable, skip API call and use local NLP parser
     if (!this.isAvailable && process.env.NODE_ENV === 'production') {
-      logger.info('AI service unavailable, using fallback resume parsing');
-      return this.fallbackParsedResume();
+      logger.info('AI service unavailable, using local NLP resume parser');
+      const { resumeParserService } = require('./resume.service');
+      return await resumeParserService.parseResume(fileUrl, fileType);
     }
 
     try {
@@ -112,10 +113,11 @@ class AIService {
       this.isAvailable = true;
       return response.data;
     } catch (error: any) {
-      logger.warn(`AI resume parsing failed: ${error.message}. Using fallback.`);
+      logger.warn(`AI resume parsing failed: ${error.message}. Using local NLP parser.`);
       this.isAvailable = false;
-      // Return basic fallback if AI service is down
-      return this.fallbackParsedResume();
+      // Use local NLP parser as fallback instead of empty result
+      const { resumeParserService } = require('./resume.service');
+      return await resumeParserService.parseResume(fileUrl, fileType);
     }
   }
 
