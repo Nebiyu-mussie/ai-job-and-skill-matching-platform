@@ -9,7 +9,7 @@ import { JOB_TYPES, EXPERIENCE_LEVELS, ETHIOPIAN_CITIES, JOB_CATEGORIES } from '
 export default function JobsPage() {
   const [filters, setFilters] = useState<JobFilters>({ page: 1, limit: 12 });
   const [showFilters, setShowFilters] = useState(false);
-  const { data, isLoading } = useJobs(filters);
+  const { data, isLoading, isError, error } = useJobs(filters);
 
   const jobs = data?.data || [];
   const pagination = data?.pagination;
@@ -140,7 +140,18 @@ export default function JobsPage() {
         )}
 
         {/* Job grid */}
-        {isLoading ? (
+        {isError ? (
+          <div className="text-center py-20">
+            <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Unable to load jobs</h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              {error instanceof Error ? error.message : 'Please try again later.'}
+            </p>
+            <button onClick={() => window.location.reload()} className="btn-primary px-6 py-2 text-sm">
+              Reload Page
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 9 }).map((_, i) => <JobCardSkeleton key={i} />)}
           </div>
