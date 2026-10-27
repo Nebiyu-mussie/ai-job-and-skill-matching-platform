@@ -99,12 +99,24 @@ const UserSchema = new Schema<IUser>(
       required: [true, 'First name is required'],
       trim: true,
       maxlength: [50, 'First name cannot exceed 50 characters'],
+      validate: {
+        validator: function(v: string) {
+          return /^[a-zA-Z\s'-]+$/.test(v);
+        },
+        message: 'First name must contain only letters, spaces, hyphens, or apostrophes'
+      }
     },
     lastName: {
       type: String,
       required: [true, 'Last name is required'],
       trim: true,
       maxlength: [50, 'Last name cannot exceed 50 characters'],
+      validate: {
+        validator: function(v: string) {
+          return /^[a-zA-Z\s'-]+$/.test(v);
+        },
+        message: 'Last name must contain only letters, spaces, hyphens, or apostrophes'
+      }
     },
     email: {
       type: String,

@@ -8,8 +8,16 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 const schema = z.object({
-  firstName: z.string().min(2, 'Min 2 characters'),
-  lastName: z.string().min(2, 'Min 2 characters'),
+  firstName: z
+    .string()
+    .min(2, 'Min 2 characters')
+    .max(50, 'Max 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'First name must contain only letters, spaces, hyphens, or apostrophes'),
+  lastName: z
+    .string()
+    .min(2, 'Min 2 characters')
+    .max(50, 'Max 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Last name must contain only letters, spaces, hyphens, or apostrophes'),
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Min 8 characters'),
   role: z.enum(['jobseeker', 'employer']),
@@ -61,11 +69,23 @@ export default function RegisterPage() {
             {/* Names */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <input {...register('firstName')} placeholder="First name" className="input-field" />
+                <input 
+                  {...register('firstName')} 
+                  placeholder="First name" 
+                  className="input-field"
+                  pattern="[a-zA-Z\s'\-]+"
+                  title="First name must contain only letters, spaces, hyphens, or apostrophes"
+                />
                 {errors.firstName && <p className="text-xs text-destructive mt-1">{errors.firstName.message}</p>}
               </div>
               <div>
-                <input {...register('lastName')} placeholder="Last name" className="input-field" />
+                <input 
+                  {...register('lastName')} 
+                  placeholder="Last name" 
+                  className="input-field"
+                  pattern="[a-zA-Z\s'\-]+"
+                  title="Last name must contain only letters, spaces, hyphens, or apostrophes"
+                />
                 {errors.lastName && <p className="text-xs text-destructive mt-1">{errors.lastName.message}</p>}
               </div>
             </div>
