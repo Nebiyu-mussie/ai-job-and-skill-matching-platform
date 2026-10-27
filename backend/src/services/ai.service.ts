@@ -141,7 +141,16 @@ class AIService {
     // If AI service is known to be unavailable, skip API call
     if (!this.isAvailable && process.env.NODE_ENV === 'production') {
       logger.info('AI service unavailable, using fallback matching calculation');
-      return this.fallbackMatchResult(candidateData.skills, jobData.requiredSkills);
+      return this.fallbackMatchResult(
+        candidateData.skills, 
+        jobData.requiredSkills,
+        { experience: candidateData.experience, education: candidateData.education },
+        { 
+          experienceYears: jobData.experienceYears, 
+          experienceLevel: jobData.experienceLevel,
+          educationLevel: jobData.educationLevel 
+        }
+      );
     }
 
     try {
@@ -154,7 +163,16 @@ class AIService {
     } catch (error: any) {
       logger.warn(`AI matching failed: ${error.message}. Using fallback calculation.`);
       this.isAvailable = false;
-      return this.fallbackMatchResult(candidateData.skills, jobData.requiredSkills);
+      return this.fallbackMatchResult(
+        candidateData.skills, 
+        jobData.requiredSkills,
+        { experience: candidateData.experience, education: candidateData.education },
+        { 
+          experienceYears: jobData.experienceYears, 
+          experienceLevel: jobData.experienceLevel,
+          educationLevel: jobData.educationLevel 
+        }
+      );
     }
   }
 
@@ -267,7 +285,16 @@ class AIService {
 
   private fallbackMatchResult(
     userSkills: string[],
-    requiredSkills: string[]
+    requiredSkills: string[],
+    candidateData?: {
+      experience?: any[];
+      education?: any[];
+    },
+    jobData?: {
+      experienceYears?: { min: number; max?: number };
+      experienceLevel?: string;
+      educationLevel?: string;
+    }
   ): MatchResult {
     // Normalize skills: trim whitespace and convert to lowercase for comparison
     const normalizeSkill = (skill: string) => skill.trim().toLowerCase();
@@ -286,14 +313,38 @@ class AIService {
     
     const skillScore = requiredSkills.length > 0 
       ? Math.round((matched.length / requiredSkills.length) * 100) 
-      : 50;
+      : 0; // Default to 0 if no data instead of 50
+    
+    // Calculate experience score dynamically
+    const experienceScore = this.calculateExperienceScore(
+      candidateData?.experience,
+      jobData?.experienceYears,
+      jobData?.experienceLevel
+    );
+    
+    // Calculate education score dynamically
+    const educationScore = this.calculateEducationScore(
+      candidateData?.education,
+      jobData?.educationLevel
+    );
+    
+    // Location score remains 50 as a neutral default (or could be enhanced based on actual location data)
+    const locationScore = 50;
+    
+    // Calculate overall score with weighted components
+    const overallScore = Math.round(
+      skillScore * 0.40 +           // Skills: 40%
+      experienceScore * 0.30 +      // Experience: 30%
+      educationScore * 0.20 +       // Education: 20%
+      locationScore * 0.10          // Location: 10%
+    );
 
     return {
-      overallScore: Math.round(skillScore * 0.6 + 40 * 0.4),
+      overallScore,
       skillMatchScore: skillScore,
-      experienceMatchScore: 50,
-      educationMatchScore: 50,
-      locationMatchScore: 50,
+      experienceMatchScore: experienceScore,
+      educationMatchScore: educationScore,
+      locationMatchScore: locationScore,
       matchedSkills: matched,
       missingSkills: missing,
       extraSkills: [],
@@ -303,6 +354,190 @@ class AIService {
         recommendations: [],
       })),
     };
+  }
+  
+  /**
+   * Calculate experience match score based on years and level
+   */
+  private calculateExperienceScore(
+    candidateExperience?: any[],
+    jobExperienceYears?: { min: number; max?: number },
+    jobExperienceLevel?: string
+  ): number {
+    // If no candidate experience data, return 0
+    if (!candidateExperience || candidateExperience.length === 0) {
+      return 0;
+    }
+    
+    // Calculate total years of experience from candidate's work history
+    let totalYears = 0;
+    const currentDate = new Date();
+    
+    for (const exp of candidateExperience) {
+      const startDate = exp.startDate ? new Date(exp.startDate) : null;
+      const endDate = exp.isCurrent || !exp.endDate ? currentDate : new Date(exp.endDate);
+      
+      if (startDate && endDate) {
+        const yearsInRole = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+        totalYears += yearsInRole;
+      }
+    }
+    
+    // Round to 1 decimal place
+    totalYears = Math.round(totalYears * 10) / 10;
+    
+    // If job has specific experience year requirements
+    if (jobExperienceYears && typeof jobExperienceYears.min === 'number') {
+      const minRequired = jobExperienceYears.min;
+      const maxRequired = jobExperienceYears.max;
+      
+      // Candidate meets or exceeds minimum requirement
+      if (totalYears >= minRequired) {
+        // If max is specified and candidate is within range, perfect score
+        if (maxRequired && totalYears <= maxRequired) {
+          return 100;
+        }
+        // If no max or candidate exceeds max but not by too much (within 5 years), still good
+        if (!maxRequired || totalYears <= maxRequired + 5) {
+          return 100;
+        }
+        // Overqualified (more than 5 years beyond max) - still good but slightly lower
+        return 90;
+      }
+      
+      // Candidate is below minimum - scale proportionally
+      // e.g., if min is 5 years and candidate has 3 years = 60% score
+      const ratio = totalYears / minRequired;
+      return Math.round(Math.min(ratio * 100, 95)); // Cap at 95% if below minimum
+    }
+    
+    // Fallback: Match based on experience level if no specific years given
+    if (jobExperienceLevel) {
+      const levelScore = this.matchExperienceLevel(totalYears, jobExperienceLevel);
+      return levelScore;
+    }
+    
+    // If no requirements specified and candidate has experience, give a neutral positive score
+    return totalYears > 0 ? 70 : 0;
+  }
+  
+  /**
+   * Match years of experience to job level
+   */
+  private matchExperienceLevel(candidateYears: number, requiredLevel: string): number {
+    const levelMap: Record<string, { min: number; max: number }> = {
+      entry: { min: 0, max: 1 },
+      junior: { min: 1, max: 3 },
+      mid: { min: 3, max: 6 },
+      senior: { min: 6, max: 10 },
+      lead: { min: 8, max: 15 },
+      director: { min: 10, max: 20 },
+      executive: { min: 15, max: 100 },
+    };
+    
+    const requiredRange = levelMap[requiredLevel.toLowerCase()];
+    if (!requiredRange) return 50; // Unknown level
+    
+    // Perfect match if within range
+    if (candidateYears >= requiredRange.min && candidateYears <= requiredRange.max) {
+      return 100;
+    }
+    
+    // Slightly below minimum
+    if (candidateYears < requiredRange.min) {
+      const ratio = candidateYears / requiredRange.min;
+      return Math.round(Math.max(ratio * 100, 20)); // Minimum 20% if some experience
+    }
+    
+    // Above maximum (overqualified)
+    if (candidateYears > requiredRange.max) {
+      const excess = candidateYears - requiredRange.max;
+      // Slightly reduce score for being overqualified, but still high
+      return Math.max(100 - excess * 2, 80); // Max penalty of 20 points
+    }
+    
+    return 50;
+  }
+  
+  /**
+   * Calculate education match score
+   */
+  private calculateEducationScore(
+    candidateEducation?: any[],
+    jobEducationLevel?: string
+  ): number {
+    // If no candidate education data, return 0
+    if (!candidateEducation || candidateEducation.length === 0) {
+      return 0;
+    }
+    
+    // If job has no education requirement, give neutral positive score
+    if (!jobEducationLevel) {
+      return candidateEducation.length > 0 ? 70 : 0;
+    }
+    
+    // Normalize education level for comparison
+    const normalizeEducation = (edu: string) => edu.trim().toLowerCase();
+    const requiredLevel = normalizeEducation(jobEducationLevel);
+    
+    // Education hierarchy (higher index = higher level)
+    const educationHierarchy = [
+      'high school',
+      'diploma',
+      'associate',
+      'bachelor',
+      'master',
+      'mba',
+      'phd',
+      'doctorate',
+    ];
+    
+    // Find required education level index
+    let requiredIndex = educationHierarchy.findIndex(level => requiredLevel.includes(level));
+    if (requiredIndex === -1) {
+      // If not in standard hierarchy, do fuzzy match
+      requiredIndex = requiredLevel.includes('degree') ? 3 : 2; // Default to bachelor's level
+    }
+    
+    // Find candidate's highest education level
+    let highestCandidateIndex = -1;
+    let hasRelevantDegree = false;
+    
+    for (const edu of candidateEducation) {
+      const candidateDegree = normalizeEducation(edu.degree || '');
+      const candidateField = normalizeEducation(edu.fieldOfStudy || '');
+      
+      const candidateIndex = educationHierarchy.findIndex(level => candidateDegree.includes(level));
+      
+      if (candidateIndex > highestCandidateIndex) {
+        highestCandidateIndex = candidateIndex;
+      }
+      
+      // Check if field of study is relevant (basic check)
+      if (candidateField.length > 0) {
+        hasRelevantDegree = true;
+      }
+    }
+    
+    // No recognized degree
+    if (highestCandidateIndex === -1) {
+      return candidateEducation.length > 0 ? 30 : 0; // Some credit for having education entries
+    }
+    
+    // Perfect match or exceeds requirement
+    if (highestCandidateIndex >= requiredIndex) {
+      return hasRelevantDegree ? 100 : 90; // 100 if relevant field, 90 if not specified
+    }
+    
+    // Below requirement - scale based on gap
+    const gap = requiredIndex - highestCandidateIndex;
+    if (gap === 1) {
+      return 70; // One level below
+    } else if (gap === 2) {
+      return 50; // Two levels below
+    } else {
+      return 30; // More than two levels below
+    }
   }
 
   async checkHealth(): Promise<boolean> {
