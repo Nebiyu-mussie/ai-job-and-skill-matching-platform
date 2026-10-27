@@ -101,7 +101,7 @@ export const applyForJob = async (req: AuthRequest, res: Response, next: NextFun
       );
       matchScore = jobSkills.length > 0
         ? Math.round((matched.length / jobSkills.length) * 100)
-        : 50;
+        : 0; // Default to 0 if no skills specified
     }
 
     const application = await Application.create({

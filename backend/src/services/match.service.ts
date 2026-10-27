@@ -273,7 +273,12 @@ class MatchService {
         const isOld =
           new Date().getTime() - existing.updatedAt.getTime() > 7 * 24 * 60 * 60 * 1000;
 
-        if (!isStaleProfile && !isOld) {
+        // FORCE recalculation if scores show hardcoded 50% (old fallback values)
+        const hasHardcodedScores = 
+          existing.experienceMatchScore === 50 || 
+          existing.educationMatchScore === 50;
+
+        if (!isStaleProfile && !isOld && !hasHardcodedScores) {
           return existing;
         }
         
@@ -282,6 +287,8 @@ class MatchService {
           logger.info(`Recalculating match for user ${userId} and job ${jobId} - user profile updated`);
         } else if (isOld) {
           logger.info(`Recalculating match for user ${userId} and job ${jobId} - match older than 7 days`);
+        } else if (hasHardcodedScores) {
+          logger.info(`Recalculating match for user ${userId} and job ${jobId} - detected old hardcoded 50% scores`);
         }
       }
 
