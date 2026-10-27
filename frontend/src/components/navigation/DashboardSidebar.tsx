@@ -109,7 +109,7 @@ export default function DashboardSidebar() {
         {/* User info */}
         <div className={cn('p-3 border-b border-border', !sidebarOpen && 'flex justify-center')}>
           <div className={cn('flex items-center gap-3', !sidebarOpen && 'justify-center')}>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+            <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
               {user?.profileImage ? (
                 <img src={user.profileImage} alt={user.firstName} className="w-full h-full object-cover" />
               ) : (

@@ -120,9 +120,9 @@ export default function AdminUsersPage() {
             <div key={user._id} className="border border-border rounded-lg p-4 sm:p-6 hover:shadow-lg transition bg-card">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 flex-shrink-0 rounded-full bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white">
                     {user.profileImage ? (
-                      <img src={user.profileImage} alt="" className="w-full h-full rounded-full object-cover" />
+                      <img src={user.profileImage} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xl font-bold">{user.firstName?.[0]?.toUpperCase()}</span>
                     )}

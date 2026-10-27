@@ -162,7 +162,7 @@ export default function ProfilePage() {
           <h2 className="font-semibold text-foreground mb-4">Profile Photo</h2>
           <div className="flex items-center gap-5">
             <div className="relative">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-brand-400 to-purple-600 flex items-center justify-center">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-brand-400 to-purple-600 flex items-center justify-center">
                 {user?.profileImage
                   ? <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
                   : <span className="text-white text-2xl font-bold">

@@ -104,12 +104,12 @@ export default function CandidatesPage() {
               >
                 <div className="flex items-start gap-4">
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 flex items-center justify-center">
                       {candidate.profileImage ? (
                         <img 
                           src={candidate.profileImage} 
                           alt="" 
-                          className="w-full h-full rounded-full object-cover" 
+                          className="w-full h-full object-cover" 
                         />
                       ) : (
                         <span className="text-2xl font-bold">

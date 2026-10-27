@@ -91,7 +91,7 @@ export default function Navbar() {
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                  <div className="relative w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                     {user.profileImage ? (
                       <img src={user.profileImage} alt={user.firstName} className="w-full h-full object-cover" />
                     ) : (
