@@ -148,19 +148,20 @@ export default function NotificationBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-96 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden"
+            className="absolute right-0 mt-2 w-[85vw] max-w-sm sm:w-80 md:w-96 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden"
           >
             {/* Header */}
-            <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
-              <h3 className="font-semibold text-lg">Notifications</h3>
+            <div className="p-3 sm:p-4 border-b border-border bg-muted/30 flex items-center justify-between gap-2">
+              <h3 className="font-semibold text-base sm:text-lg">Notifications</h3>
               {unreadCount > 0 && (
                 <button
                   onClick={() => markAllAsReadMutation.mutate()}
                   disabled={markAllAsReadMutation.isPending}
-                  className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1"
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 whitespace-nowrap flex-shrink-0"
                 >
                   <CheckCheck className="h-3 w-3" />
-                  Mark all read
+                  <span className="hidden sm:inline">Mark all read</span>
+                  <span className="sm:hidden">Mark all</span>
                 </button>
               )}
             </div>
@@ -184,7 +185,7 @@ export default function NotificationBell() {
                     <div
                       key={notification._id}
                       className={cn(
-                        'p-4 hover:bg-accent/50 transition-colors cursor-pointer',
+                        'p-3 sm:p-4 hover:bg-accent/50 transition-colors cursor-pointer',
                         !notification.isRead && 'bg-brand-50/50 dark:bg-brand-950/20'
                       )}
                       onClick={() => handleNotificationClick(notification)}
@@ -229,8 +230,8 @@ function NotificationContent({
   getIcon: (type: string) => string;
 }) {
   return (
-    <div className="flex gap-3">
-      <div className="flex-shrink-0 text-2xl">{getIcon(notification.type)}</div>
+    <div className="flex gap-2 sm:gap-3">
+      <div className="flex-shrink-0 text-xl sm:text-2xl">{getIcon(notification.type)}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <p className="font-medium text-sm text-foreground line-clamp-1">{notification.title}</p>
@@ -238,7 +239,7 @@ function NotificationContent({
             <div className="flex-shrink-0 h-2 w-2 bg-brand-600 rounded-full mt-1"></div>
           )}
         </div>
-        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
         <p className="text-xs text-muted-foreground mt-2">
           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
         </p>
