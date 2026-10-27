@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Camera, Plus, X, Save, MapPin, Phone, Globe, Linkedin, Github } from 'lucide-react';
+import { Camera, Plus, X, Save, MapPin, Phone, Globe, Linkedin, Github, ZoomIn, ZoomOut, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Cropper from 'react-easy-crop';
 import api, { getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { ETHIOPIAN_CITIES } from '@/lib/utils';
+
+// Type definition for cropped area
+interface Area {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 const schema = z.object({
   firstName: z.string().min(2),
@@ -23,10 +32,70 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
+// Helper function to create cropped image
+const createImage = (url: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
+    image.src = url;
+  });
+
+async function getCroppedImg(
+  imageSrc: string,
+  pixelCrop: Area
+): Promise<Blob> {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('No 2d context');
+  }
+
+  // Set canvas size to match the crop area
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  // Draw the cropped image
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+
+  // Convert canvas to blob
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error('Canvas is empty'));
+      }
+    }, 'image/jpeg', 0.95);
+  });
+}
+
 export default function ProfilePage() {
   const { user, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
   const [imageUploading, setImageUploading] = useState(false);
+  
+  // Image cropper state
+  const [showCropper, setShowCropper] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string>('');
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  
+  // Lightbox state
+  const [showLightbox, setShowLightbox] = useState(false);
   
   // Skills management state
   const [skills, setSkills] = useState<Array<{ name: string; level: string; yearsOfExperience?: number }>>(
@@ -113,23 +182,77 @@ export default function ProfilePage() {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Read file and show cropper
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      setImageSrc(reader.result as string);
+      setShowCropper(true);
+      setZoom(1);
+      setCrop({ x: 0, y: 0 });
+    });
+    reader.readAsDataURL(file);
+
+    // Reset input
+    e.target.value = '';
+  };
+
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleCropConfirm = async () => {
+    if (!croppedAreaPixels || !imageSrc) return;
+
     setImageUploading(true);
-    const formData = new FormData();
-    formData.append('profileImage', file);
     try {
+      // Get cropped image blob
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('profileImage', croppedBlob, 'profile.jpg');
+
+      // Upload to server
       const res = await api.post('/users/profile/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      
       updateUser({ profileImage: res.data.data.profileImage });
-      toast.success('Profile photo updated');
+      toast.success('Profile photo updated successfully');
+      setShowCropper(false);
+      setImageSrc('');
     } catch (error: any) {
       toast.error(getErrorMessage(error));
     } finally {
       setImageUploading(false);
     }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setImageSrc('');
+    setZoom(1);
+    setCrop({ x: 0, y: 0 });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFileSelect(e);
   };
 
   return (
@@ -162,13 +285,22 @@ export default function ProfilePage() {
           <h2 className="font-semibold text-foreground mb-4">Profile Photo</h2>
           <div className="flex items-center gap-5">
             <div className="relative">
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-brand-400 to-purple-600 flex items-center justify-center">
-                {user?.profileImage
-                  ? <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
-                  : <span className="text-white text-2xl font-bold">
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
-                    </span>}
-              </div>
+              <button
+                type="button"
+                onClick={() => user?.profileImage && setShowLightbox(true)}
+                className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-brand-400 to-purple-600 flex items-center justify-center ${
+                  user?.profileImage ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
+                }`}
+                title={user?.profileImage ? 'Click to view full size' : undefined}
+              >
+                {user?.profileImage ? (
+                  <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white text-2xl sm:text-3xl font-bold">
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </span>
+                )}
+              </button>
               <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors shadow-lg">
                 <Camera className="w-3.5 h-3.5 text-white" />
                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
@@ -176,7 +308,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">Upload photo</p>
-              <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG or WebP. Max 2MB.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG or WebP. Max 5MB.</p>
               {imageUploading && <p className="text-xs text-primary mt-1">Uploading…</p>}
             </div>
           </div>
@@ -368,6 +500,156 @@ export default function ProfilePage() {
           </button>
         </div>
       </form>
+
+      {/* Image Cropper Modal */}
+      <AnimatePresence>
+        {showCropper && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+            onClick={handleCropCancel}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">Adjust Your Photo</h3>
+                <button
+                  onClick={handleCropCancel}
+                  className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Cropper Area */}
+              <div className="relative h-96 bg-black">
+                <Cropper
+                  image={imageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape="round"
+                  showGrid={false}
+                  onCropChange={setCrop}
+                  onCropComplete={onCropComplete}
+                  onZoomChange={setZoom}
+                />
+              </div>
+
+              {/* Controls */}
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <ZoomOut className="w-4 h-4" />
+                      Zoom
+                      <ZoomIn className="w-4 h-4" />
+                    </label>
+                    <span className="text-sm text-muted-foreground">{Math.round(zoom * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
+                  />
+                </div>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  Drag to reposition • Scroll or use slider to zoom
+                </p>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCropCancel}
+                    className="flex-1 px-4 py-2.5 rounded-lg border border-border hover:bg-muted transition-colors text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCropConfirm}
+                    disabled={imageUploading}
+                    className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    {imageUploading ? (
+                      'Uploading...'
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Set as Profile Photo
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {showLightbox && user?.profileImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 cursor-pointer"
+            onClick={() => setShowLightbox(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', duration: 0.3 }}
+              className="relative max-w-2xl max-h-[90vh] cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close button */}
+              <button
+                onClick={() => setShowLightbox(false)}
+                className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors backdrop-blur-sm"
+                title="Close"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+
+              {/* Full size image */}
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img
+                  src={user.profileImage}
+                  alt={`${user.firstName} ${user.lastName}`}
+                  className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl"
+                />
+              </div>
+
+              {/* User info */}
+              <div className="absolute -bottom-16 left-0 right-0 text-center">
+                <p className="text-white font-semibold">
+                  {user.firstName} {user.lastName}
+                </p>
+                {user.headline && (
+                  <p className="text-white/70 text-sm mt-1">{user.headline}</p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
