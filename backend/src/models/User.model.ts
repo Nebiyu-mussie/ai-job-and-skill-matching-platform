@@ -222,9 +222,39 @@ const UserSchema = new Schema<IUser>(
         },
       },
     ],
-    portfolio: String,
-    linkedIn: String,
-    github: String,
+    portfolio: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function(v: string) {
+          if (!v) return true; // Allow empty
+          return /^https?:\/\/.+/.test(v);
+        },
+        message: 'Portfolio URL must be a valid URL starting with http:// or https://'
+      }
+    },
+    linkedIn: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function(v: string) {
+          if (!v) return true; // Allow empty
+          return /^https?:\/\/.+/.test(v);
+        },
+        message: 'LinkedIn URL must be a valid URL starting with http:// or https://'
+      }
+    },
+    github: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function(v: string) {
+          if (!v) return true; // Allow empty
+          return /^https?:\/\/.+/.test(v);
+        },
+        message: 'GitHub URL must be a valid URL starting with http:// or https://'
+      }
+    },
     jobPreferences: {
       jobTypes: [String],
       expectedSalary: {

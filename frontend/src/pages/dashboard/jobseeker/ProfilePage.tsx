@@ -27,9 +27,18 @@ const schema = z.object({
   bio: z.string().max(2000).optional(),
   phone: z.string().optional(),
   city: z.string().optional(),
-  portfolio: z.string().url().optional().or(z.literal('')),
-  linkedIn: z.string().url().optional().or(z.literal('')),
-  github: z.string().url().optional().or(z.literal('')),
+  portfolio: z.string().refine(
+    (val) => !val || val === '' || /^https?:\/\/.+/.test(val),
+    { message: 'Must be a valid URL starting with http:// or https://' }
+  ).optional(),
+  linkedIn: z.string().refine(
+    (val) => !val || val === '' || /^https?:\/\/.+/.test(val),
+    { message: 'Must be a valid URL starting with http:// or https://' }
+  ).optional(),
+  github: z.string().refine(
+    (val) => !val || val === '' || /^https?:\/\/.+/.test(val),
+    { message: 'Must be a valid URL starting with http:// or https://' }
+  ).optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -371,18 +380,21 @@ export default function ProfilePage() {
               <Globe className="w-3.5 h-3.5 inline mr-1.5" />Portfolio Website
             </label>
             <input {...register('portfolio')} placeholder="https://yoursite.com" className="input-field" />
+            {errors.portfolio && <p className="text-xs text-destructive mt-1">{errors.portfolio.message}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               <Linkedin className="w-3.5 h-3.5 inline mr-1.5" />LinkedIn
             </label>
             <input {...register('linkedIn')} placeholder="https://linkedin.com/in/yourname" className="input-field" />
+            {errors.linkedIn && <p className="text-xs text-destructive mt-1">{errors.linkedIn.message}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               <Github className="w-3.5 h-3.5 inline mr-1.5" />GitHub
             </label>
             <input {...register('github')} placeholder="https://github.com/yourname" className="input-field" />
+            {errors.github && <p className="text-xs text-destructive mt-1">{errors.github.message}</p>}
           </div>
         </div>
 
