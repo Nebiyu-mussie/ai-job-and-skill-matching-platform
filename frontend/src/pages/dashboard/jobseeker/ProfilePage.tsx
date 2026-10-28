@@ -10,6 +10,7 @@ import Cropper from 'react-easy-crop';
 import api, { getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { ETHIOPIAN_CITIES } from '@/lib/utils';
+import SkillAutocomplete from '@/components/ui/SkillAutocomplete';
 
 // Type definition for cropped area
 interface Area {
@@ -398,13 +399,11 @@ export default function ProfilePage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
               <div className="sm:col-span-5">
-                <input
-                  type="text"
+                <SkillAutocomplete
                   value={newSkillName}
-                  onChange={(e) => setNewSkillName(e.target.value)}
+                  onChange={setNewSkillName}
                   onKeyPress={handleKeyPress}
-                  placeholder="Skill name (e.g., JavaScript, Python)"
-                  className="input-field"
+                  placeholder="Type to search skills (e.g., JavaScript, Python)"
                 />
               </div>
               <div className="sm:col-span-3">
@@ -443,7 +442,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Add your technical and professional skills. Press Enter or click Add to include a skill.
+              Type to search from 200+ standard skills, or press Enter to add a custom skill.
             </p>
           </div>
 
