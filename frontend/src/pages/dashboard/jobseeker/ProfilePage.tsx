@@ -115,6 +115,41 @@ export default function ProfilePage() {
   const [newSkillLevel, setNewSkillLevel] = useState<'beginner' | 'intermediate' | 'advanced' | 'expert'>('intermediate');
   const [newSkillYears, setNewSkillYears] = useState<string>('');
 
+  // Experience management state
+  const [experience, setExperience] = useState<Array<{
+    title: string;
+    company: string;
+    location?: string;
+    startDate: Date;
+    endDate?: Date;
+    isCurrent: boolean;
+    description?: string;
+  }>>((user as any)?.experience || []);
+  const [newExpTitle, setNewExpTitle] = useState('');
+  const [newExpCompany, setNewExpCompany] = useState('');
+  const [newExpLocation, setNewExpLocation] = useState('');
+  const [newExpStartDate, setNewExpStartDate] = useState('');
+  const [newExpEndDate, setNewExpEndDate] = useState('');
+  const [newExpIsCurrent, setNewExpIsCurrent] = useState(false);
+  const [newExpDescription, setNewExpDescription] = useState('');
+
+  // Education management state
+  const [education, setEducation] = useState<Array<{
+    degree: string;
+    institution: string;
+    fieldOfStudy: string;
+    startDate: Date;
+    endDate?: Date;
+    grade?: string;
+    description?: string;
+  }>>((user as any)?.education || []);
+  const [newEduDegree, setNewEduDegree] = useState('');
+  const [newEduInstitution, setNewEduInstitution] = useState('');
+  const [newEduField, setNewEduField] = useState('');
+  const [newEduStartDate, setNewEduStartDate] = useState('');
+  const [newEduEndDate, setNewEduEndDate] = useState('');
+  const [newEduGrade, setNewEduGrade] = useState('');
+
   const { register, handleSubmit, formState: { errors, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -142,7 +177,9 @@ export default function ProfilePage() {
         portfolio: data.portfolio,
         linkedIn: data.linkedIn,
         github: data.github,
-        skills: skills, // Include skills in the payload
+        skills: skills,
+        experience: experience,
+        education: education,
       };
       const res = await api.put('/users/profile', payload);
       return res.data.data.user;
@@ -190,6 +227,68 @@ export default function ProfilePage() {
       e.preventDefault();
       handleAddSkill();
     }
+  };
+
+  const handleAddExperience = () => {
+    if (!newExpTitle.trim() || !newExpCompany.trim() || !newExpStartDate) {
+      toast.error('Please fill in title, company, and start date');
+      return;
+    }
+
+    const newExp = {
+      title: newExpTitle.trim(),
+      company: newExpCompany.trim(),
+      location: newExpLocation.trim() || undefined,
+      startDate: new Date(newExpStartDate),
+      endDate: newExpIsCurrent || !newExpEndDate ? undefined : new Date(newExpEndDate),
+      isCurrent: newExpIsCurrent,
+      description: newExpDescription.trim() || undefined,
+    };
+
+    setExperience([...experience, newExp]);
+    setNewExpTitle('');
+    setNewExpCompany('');
+    setNewExpLocation('');
+    setNewExpStartDate('');
+    setNewExpEndDate('');
+    setNewExpIsCurrent(false);
+    setNewExpDescription('');
+    toast.success('Experience added. Remember to save your profile!');
+  };
+
+  const handleRemoveExperience = (index: number) => {
+    setExperience(experience.filter((_, i) => i !== index));
+    toast.success('Experience removed. Remember to save your profile!');
+  };
+
+  const handleAddEducation = () => {
+    if (!newEduDegree.trim() || !newEduInstitution.trim() || !newEduField.trim() || !newEduStartDate) {
+      toast.error('Please fill in degree, institution, field of study, and start date');
+      return;
+    }
+
+    const newEdu = {
+      degree: newEduDegree.trim(),
+      institution: newEduInstitution.trim(),
+      fieldOfStudy: newEduField.trim(),
+      startDate: new Date(newEduStartDate),
+      endDate: newEduEndDate ? new Date(newEduEndDate) : undefined,
+      grade: newEduGrade.trim() || undefined,
+    };
+
+    setEducation([...education, newEdu]);
+    setNewEduDegree('');
+    setNewEduInstitution('');
+    setNewEduField('');
+    setNewEduStartDate('');
+    setNewEduEndDate('');
+    setNewEduGrade('');
+    toast.success('Education added. Remember to save your profile!');
+  };
+
+  const handleRemoveEducation = (index: number) => {
+    setEducation(education.filter((_, i) => i !== index));
+    toast.success('Education removed. Remember to save your profile!');
   };
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -494,6 +593,294 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground">No skills added yet.</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Add skills above to showcase your expertise to employers.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Experience Section */}
+        <div className="card p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">Work Experience</h2>
+            <span className="text-xs text-muted-foreground">
+              {experience.length} {experience.length === 1 ? 'role' : 'roles'}
+            </span>
+          </div>
+
+          {/* Add new experience */}
+          <div className="space-y-3 border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">Add your work experience to improve match accuracy</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <input
+                  type="text"
+                  value={newExpTitle}
+                  onChange={(e) => setNewExpTitle(e.target.value)}
+                  placeholder="Job Title (e.g., Software Engineer)"
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={newExpCompany}
+                  onChange={(e) => setNewExpCompany(e.target.value)}
+                  placeholder="Company Name"
+                  className="input-field"
+                />
+              </div>
+            </div>
+
+            <div>
+              <input
+                type="text"
+                value={newExpLocation}
+                onChange={(e) => setNewExpLocation(e.target.value)}
+                placeholder="Location (optional)"
+                className="input-field"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Start Date</label>
+                <input
+                  type="month"
+                  value={newExpStartDate}
+                  onChange={(e) => setNewExpStartDate(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">End Date</label>
+                <input
+                  type="month"
+                  value={newExpEndDate}
+                  onChange={(e) => setNewExpEndDate(e.target.value)}
+                  disabled={newExpIsCurrent}
+                  className="input-field"
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newExpIsCurrent}
+                onChange={(e) => {
+                  setNewExpIsCurrent(e.target.checked);
+                  if (e.target.checked) setNewExpEndDate('');
+                }}
+                className="rounded"
+              />
+              I currently work here
+            </label>
+
+            <div>
+              <textarea
+                value={newExpDescription}
+                onChange={(e) => setNewExpDescription(e.target.value)}
+                placeholder="Description (optional)"
+                rows={3}
+                className="input-field resize-none"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddExperience}
+              className="btn-primary w-full sm:w-auto px-6 py-2 flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Add Experience
+            </button>
+          </div>
+
+          {/* Experience list */}
+          {experience.length > 0 ? (
+            <div className="space-y-3 pt-2">
+              {experience.map((exp, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="p-4 rounded-lg border border-border bg-muted/30 hover:border-brand-300 transition-colors group"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground">{exp.title}</h3>
+                      <p className="text-sm text-muted-foreground">{exp.company}</p>
+                      {exp.location && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{exp.location}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(exp.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })} - {' '}
+                        {exp.isCurrent ? 'Present' : exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : 'N/A'}
+                      </p>
+                      {exp.description && (
+                        <p className="text-sm text-muted-foreground mt-2">{exp.description}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveExperience(index)}
+                      className="text-muted-foreground hover:text-destructive transition-colors ml-2"
+                      title="Remove experience"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-muted/30 rounded-lg border-2 border-dashed">
+              <p className="text-sm text-muted-foreground">No work experience added yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add your work history to help employers understand your background.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Education Section */}
+        <div className="card p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground">Education</h2>
+            <span className="text-xs text-muted-foreground">
+              {education.length} {education.length === 1 ? 'degree' : 'degrees'}
+            </span>
+          </div>
+
+          {/* Add new education */}
+          <div className="space-y-3 border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">Add your education to improve match accuracy</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <select
+                  value={newEduDegree}
+                  onChange={(e) => setNewEduDegree(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Select Degree Level</option>
+                  <option value="High School">High School</option>
+                  <option value="Diploma">Diploma</option>
+                  <option value="Associate Degree">Associate Degree</option>
+                  <option value="Bachelor's Degree">Bachelor's Degree</option>
+                  <option value="Master's Degree">Master's Degree</option>
+                  <option value="MBA">MBA</option>
+                  <option value="PhD">PhD</option>
+                  <option value="Doctorate">Doctorate</option>
+                </select>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={newEduField}
+                  onChange={(e) => setNewEduField(e.target.value)}
+                  placeholder="Field of Study (e.g., Computer Science)"
+                  className="input-field"
+                />
+              </div>
+            </div>
+
+            <div>
+              <input
+                type="text"
+                value={newEduInstitution}
+                onChange={(e) => setNewEduInstitution(e.target.value)}
+                placeholder="Institution Name"
+                className="input-field"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Start Date</label>
+                <input
+                  type="month"
+                  value={newEduStartDate}
+                  onChange={(e) => setNewEduStartDate(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">End Date (optional)</label>
+                <input
+                  type="month"
+                  value={newEduEndDate}
+                  onChange={(e) => setNewEduEndDate(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Grade/GPA (optional)</label>
+                <input
+                  type="text"
+                  value={newEduGrade}
+                  onChange={(e) => setNewEduGrade(e.target.value)}
+                  placeholder="e.g., 3.8"
+                  className="input-field"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddEducation}
+              className="btn-primary w-full sm:w-auto px-6 py-2 flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Add Education
+            </button>
+          </div>
+
+          {/* Education list */}
+          {education.length > 0 ? (
+            <div className="space-y-3 pt-2">
+              {education.map((edu, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="p-4 rounded-lg border border-border bg-muted/30 hover:border-brand-300 transition-colors group"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground">{edu.degree}</h3>
+                      <p className="text-sm text-muted-foreground">{edu.institution}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Field of Study: {edu.fieldOfStudy}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(edu.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })} - {' '}
+                        {edu.endDate ? new Date(edu.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : 'Present'}
+                      </p>
+                      {edu.grade && (
+                        <p className="text-xs text-muted-foreground mt-1">Grade: {edu.grade}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEducation(index)}
+                      className="text-muted-foreground hover:text-destructive transition-colors ml-2"
+                      title="Remove education"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-muted/30 rounded-lg border-2 border-dashed">
+              <p className="text-sm text-muted-foreground">No education added yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add your educational background to showcase your qualifications.
               </p>
             </div>
           )}
