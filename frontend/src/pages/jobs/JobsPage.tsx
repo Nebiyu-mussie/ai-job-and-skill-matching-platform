@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, SlidersHorizontal, MapPin, Briefcase, Clock, X } from 'lucide-react';
 import { useJobs, JobFilters } from '@/hooks/useJobs';
@@ -7,9 +8,38 @@ import { JobCardSkeleton } from '@/components/ui/SkeletonCard';
 import { JOB_TYPES, EXPERIENCE_LEVELS, ETHIOPIAN_CITIES, JOB_CATEGORIES } from '@/lib/utils';
 
 export default function JobsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<JobFilters>({ page: 1, limit: 12 });
   const [showFilters, setShowFilters] = useState(false);
   const { data, isLoading, isError, error } = useJobs(filters);
+
+  // Read query parameters on mount and update filters
+  useEffect(() => {
+    const cityParam = searchParams.get('city');
+    const searchParam = searchParams.get('search');
+    const jobTypeParam = searchParams.get('jobType');
+    const experienceLevelParam = searchParams.get('experienceLevel');
+    
+    const urlFilters: JobFilters = { page: 1, limit: 12 };
+    
+    if (cityParam) {
+      urlFilters.city = cityParam;
+    }
+    if (searchParam) {
+      urlFilters.search = searchParam;
+    }
+    if (jobTypeParam) {
+      urlFilters.jobType = jobTypeParam;
+    }
+    if (experienceLevelParam) {
+      urlFilters.experienceLevel = experienceLevelParam;
+    }
+    
+    // Only update filters if there are URL parameters
+    if (Object.keys(urlFilters).length > 2) {
+      setFilters(urlFilters);
+    }
+  }, []); // Run only on mount
 
   const jobs = data?.data || [];
   const pagination = data?.pagination;
@@ -59,6 +89,22 @@ export default function JobsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Active city filter badge */}
+        {filters.city && (
+          <div className="mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-sm border border-brand-200 dark:border-brand-700">
+              <MapPin className="w-4 h-4" />
+              <span>Showing jobs in <strong>{filters.city}</strong></span>
+              <button 
+                onClick={() => setFilter('city', '')} 
+                className="ml-1 hover:text-brand-900 dark:hover:text-brand-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Filter bar */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div className="flex items-center gap-2 flex-wrap">

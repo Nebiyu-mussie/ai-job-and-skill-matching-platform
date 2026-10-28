@@ -103,8 +103,8 @@ export default function LandingPage() {
               {cities.map((city) => (
                 <Link
                   key={city}
-                  to={`/jobs?city=${city}`}
-                  className="text-xs px-3 py-1 rounded-full bg-muted hover:bg-accent border border-border text-muted-foreground hover:text-foreground transition-colors"
+                  to={`/jobs?city=${encodeURIComponent(city)}`}
+                  className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-gray-100 dark:hover:bg-gray-800 border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors cursor-pointer hover:shadow-sm"
                 >
                   {city}
                 </Link>
