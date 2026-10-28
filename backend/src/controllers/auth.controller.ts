@@ -13,7 +13,8 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       message: 'OTP sent to your email',
       email: user.email,
     }, 'Please verify your email with the OTP code');
-  } catch (error) {
+  } catch (error: any) {
+    console.error('❌ Registration error:', error);
     next(error);
   }
 };
@@ -37,7 +38,8 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
       user: userData,
       accessToken: tokens.accessToken,
     }, 'Email verified successfully');
-  } catch (error) {
+  } catch (error: any) {
+    console.error('❌ OTP verification error:', error.message);
     next(error);
   }
 };

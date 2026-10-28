@@ -65,11 +65,17 @@ class AuthService {
     const otp = user.generateOTP();
     await user.save({ validateBeforeSave: false });
 
-    // Send OTP email asynchronously
-    emailService.sendOTP(user.firstName, user.email, otp).catch((emailError: any) => {
-      console.error('❌ Background OTP Email Error:', emailError);
-      console.log('🔢 OTP Code:', otp);
-    });
+    // Send OTP email - throw error if it fails
+    try {
+      await emailService.sendOTP(user.firstName, user.email, otp);
+      console.log('✅ OTP email sent successfully to:', user.email);
+    } catch (emailError: any) {
+      console.error('❌ Failed to send OTP email:', emailError);
+      console.log('🔢 OTP Code for debugging:', otp);
+      // Delete the user if email fails - they can't verify without the OTP
+      await User.findByIdAndDelete(user._id);
+      throw ApiError.internal('Failed to send verification email. Please try again.');
+    }
 
     return user;
   }
@@ -214,6 +220,7 @@ class AuthService {
     
     // CRITICAL: Send email asynchronously in background to prevent request timeout
     // Do NOT await - let HTTP response return immediately
+    // Password reset emails should NOT block the request
     emailService.sendPasswordReset(user.firstName, user.email, resetUrl).catch((emailError: any) => {
       // Background email dispatch failed - log fallback link
       console.error('❌ Background SMTP Dispatch Error:', emailError);

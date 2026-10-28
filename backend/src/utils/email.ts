@@ -58,6 +58,12 @@ class EmailService {
         console.log(`Subject: ${mailOptions.subject}`);
         console.log(`From: ${mailOptions.from}`);
         
+        // Extract OTP code from HTML for development
+        const otpMatch = options.html.match(/font-family: 'Courier New', monospace;">(\d{6})</);
+        if (otpMatch && otpMatch[1]) {
+          console.log(`🔢 OTP CODE: ${otpMatch[1]}`);
+        }
+        
         // Extract reset URL or verification URL from HTML
         const urlMatch = options.html.match(/href="([^"]+)"/);
         if (urlMatch && urlMatch[1]) {
@@ -77,6 +83,10 @@ class EmailService {
         logger.info(`Subject: ${mailOptions.subject}`);
         logger.info(`From: ${mailOptions.from}`);
         
+        if (otpMatch && otpMatch[1]) {
+          logger.info(`🔢 OTP CODE: ${otpMatch[1]}`);
+        }
+        
         if (urlMatch && urlMatch[1]) {
           logger.info(`🔗 ACTION LINK: ${urlMatch[1]}`);
           const tokenMatch = urlMatch[1].match(/\/([a-f0-9]{64}|[a-zA-Z0-9]{40,})$/);
@@ -86,11 +96,15 @@ class EmailService {
         }
         
         logger.info('📧 ========================================================');
+        // In development mode, succeed even without sending
+        return;
       } else {
+        // In production without config, throw error
+        const error = new Error('Email service not configured - RESEND_API_KEY missing');
         logger.error('❌ Cannot send email: Resend API key not configured in production environment');
         logger.error('   Please set RESEND_API_KEY environment variable in Render dashboard');
+        throw error;
       }
-      return;
     }
 
     try {
@@ -108,10 +122,16 @@ class EmailService {
       console.log('📧 Email sent successfully via Resend API:', data);
       logger.info(`✅ Email sent successfully via Resend API to ${options.to}`, data);
     } catch (error: any) {
-      // CRITICAL: Never crash the request on email dispatch errors
       console.error('❌ Resend API Dispatch Error:', error);
       logger.error('❌ Resend API sending failed:', error.message);
       logger.error('   Error name:', error.name);
+      
+      // Extract OTP code for debugging
+      const otpMatch = options.html.match(/font-family: 'Courier New', monospace;">(\d{6})</);
+      if (otpMatch && otpMatch[1]) {
+        console.log('🔢 OTP CODE (for debugging):', otpMatch[1]);
+        logger.error('🔢 OTP CODE (for debugging):', otpMatch[1]);
+      }
       
       // Extract and log action link as fallback
       const urlMatch = options.html.match(/href="([^"]+)"/);
@@ -131,8 +151,8 @@ class EmailService {
       logger.error(`   To: ${mailOptions.to}`);
       logger.error(`   Subject: ${mailOptions.subject}`);
       
-      // DO NOT throw - email failures shouldn't crash the request
-      // The controller will complete successfully and return 200
+      // THROW the error so caller can handle it appropriately
+      throw error;
     }
   }
 
