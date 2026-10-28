@@ -276,6 +276,48 @@ class EmailService {
       `,
     });
   }
+
+  async sendOTP(name: string, email: string, otp: string): Promise<void> {
+    await this.send({
+      to: email,
+      subject: 'AI Job Platform - Email Verification Code',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"><title>Email Verification</title></head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+          <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #4F46E5; font-size: 28px; margin: 0;">AI Job Platform</h1>
+              <p style="color: #6B7280; margin-top: 8px;">Ethiopia's Premier AI-Powered Recruitment Platform</p>
+            </div>
+            <h2 style="color: #111827;">Welcome, ${name}! 🎉</h2>
+            <p style="color: #374151; line-height: 1.6;">
+              Thank you for registering with AI Job Platform. To complete your registration, please verify your email address using the code below:
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <div style="background: #F3F4F6; border: 2px solid #E5E7EB; border-radius: 8px; padding: 20px; display: inline-block;">
+                <p style="color: #6B7280; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">VERIFICATION CODE</p>
+                <p style="font-size: 36px; font-weight: bold; color: #4F46E5; margin: 0; letter-spacing: 8px; font-family: 'Courier New', monospace;">${otp}</p>
+              </div>
+            </div>
+            <p style="color: #374151; line-height: 1.6;">
+              Enter this code in the verification screen to activate your account.
+            </p>
+            <p style="color: #EF4444; font-size: 14px; font-weight: 600; margin-top: 20px;">
+              ⏱️ This code expires in 10 minutes.
+            </p>
+            <p style="color: #6B7280; font-size: 14px; margin-top: 20px;">
+              If you didn't create an account, please ignore this email and the code will expire automatically.
+            </p>
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 30px 0;">
+            <p style="color: #9CA3AF; font-size: 12px; text-align: center;">© 2024 AI Job Platform. All rights reserved. | Addis Ababa, Ethiopia</p>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+  }
 }
 
 export const emailService = new EmailService();

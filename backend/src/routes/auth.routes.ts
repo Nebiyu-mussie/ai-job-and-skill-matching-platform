@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import {
   register, login, logout, logoutAll, refreshToken,
-  verifyEmail, forgotPassword, resetPassword, changePassword, getMe,
+  verifyEmail, forgotPassword, resetPassword, changePassword, getMe, verifyOTP,
 } from '../controllers/auth.controller';
 import { authenticate, softAuthenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
 router.post('/register', register);
+router.post('/verify-otp', verifyOTP);
 router.post('/login', login);
 router.post('/logout', softAuthenticate, logout); // Use softAuthenticate for graceful logout
 router.post('/logout-all', softAuthenticate, logoutAll); // Use softAuthenticate for graceful logout

@@ -22,6 +22,8 @@ export interface IUser extends Document {
   emailVerificationExpires?: Date;
   passwordResetToken?: string;
   passwordResetExpires?: Date;
+  otpCode?: string;
+  otpExpiresAt?: Date;
   isActive: boolean;
   isBanned: boolean;
   banReason?: string;
@@ -89,6 +91,7 @@ export interface IUser extends Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
   createPasswordResetToken(): string;
   createEmailVerificationToken(): string;
+  generateOTP(): string;
   calculateProfileCompleteness(): number;
 }
 
@@ -154,6 +157,8 @@ const UserSchema = new Schema<IUser>(
     emailVerificationExpires: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
+    otpCode: String,
+    otpExpiresAt: Date,
     isActive: { type: Boolean, default: true },
     isBanned: { type: Boolean, default: false },
     banReason: String,
@@ -323,6 +328,14 @@ UserSchema.methods.createEmailVerificationToken = function (): string {
   this.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
   this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   return verificationToken;
+};
+
+UserSchema.methods.generateOTP = function (): string {
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  this.otpCode = otp;
+  this.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  return otp;
 };
 
 UserSchema.methods.calculateProfileCompleteness = function (): number {

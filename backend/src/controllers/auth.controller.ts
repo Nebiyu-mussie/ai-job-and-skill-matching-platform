@@ -7,17 +7,36 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { user, tokens } = await authService.register(req.body);
+    const user = await authService.register(req.body);
+
+    ApiResponse.created(res, {
+      message: 'OTP sent to your email',
+      email: user.email,
+    }, 'Please verify your email with the OTP code');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyOTP = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      throw ApiError.badRequest('Email and OTP are required');
+    }
+
+    const { user, tokens } = await authService.verifyOTP(email, otp);
     setRefreshTokenCookie(res, tokens.refreshToken);
 
     const userData = user.toObject() as any;
     delete userData.password;
     delete userData.refreshTokens;
 
-    ApiResponse.created(res, {
+    ApiResponse.success(res, {
       user: userData,
       accessToken: tokens.accessToken,
-    }, 'Account created successfully');
+    }, 'Email verified successfully');
   } catch (error) {
     next(error);
   }

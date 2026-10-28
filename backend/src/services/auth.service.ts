@@ -31,7 +31,7 @@ export interface AuthTokens {
 }
 
 class AuthService {
-  async register(data: RegisterDTO): Promise<{ user: IUser; tokens: AuthTokens }> {
+  async register(data: RegisterDTO): Promise<IUser> {
     const existingUser = await User.findOne({ email: data.email.toLowerCase() });
     if (existingUser) {
       throw ApiError.conflict('An account with this email already exists');
@@ -45,6 +45,7 @@ class AuthService {
       role: data.role || 'jobseeker',
       phone: data.phone,
       location: data.city ? { city: data.city, country: 'Ethiopia' } : undefined,
+      isEmailVerified: false, // Start as unverified
     });
 
     // Create employer profile if role is employer
@@ -60,24 +61,50 @@ class AuthService {
       await user.save();
     }
 
-    // Generate email verification token
-    const verificationToken = user.createEmailVerificationToken();
+    // Generate and save OTP
+    const otp = user.generateOTP();
     await user.save({ validateBeforeSave: false });
 
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-    
-    // CRITICAL: Send email asynchronously in background to prevent request timeout
-    // Do NOT await - let HTTP response return immediately
-    emailService.sendWelcome(user.firstName, user.email, verificationUrl).catch((emailError: any) => {
-      // Background email dispatch failed - log fallback link
-      console.error('❌ Background SMTP Dispatch Error in register:', emailError);
-      console.log('🔗 Background Verification Link:', verificationUrl);
-      console.log('🎫 Verification Token:', verificationToken);
-      // Token is already saved in database - admin can manually notify user
+    // Send OTP email asynchronously
+    emailService.sendOTP(user.firstName, user.email, otp).catch((emailError: any) => {
+      console.error('❌ Background OTP Email Error:', emailError);
+      console.log('🔢 OTP Code:', otp);
     });
 
+    return user;
+  }
+
+  async verifyOTP(email: string, otp: string): Promise<{ user: IUser; tokens: AuthTokens }> {
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      throw ApiError.unauthorized('Invalid email');
+    }
+
+    if (!user.otpCode || !user.otpExpiresAt) {
+      throw ApiError.badRequest('No OTP found. Please request a new one.');
+    }
+
+    if (user.otpExpiresAt < new Date()) {
+      throw ApiError.badRequest('OTP has expired. Please request a new one.');
+    }
+
+    if (user.otpCode !== otp) {
+      throw ApiError.unauthorized('Invalid OTP code');
+    }
+
+    // OTP is valid - verify the account
+    user.isEmailVerified = true;
+    user.otpCode = undefined;
+    user.otpExpiresAt = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    // Generate tokens
     const tokens = this.generateTokens(user);
-    await this.saveRefreshToken(user, tokens.refreshToken, data.device);
+    await this.saveRefreshToken(user, tokens.refreshToken);
+
+    // Populate employer if exists
+    await user.populate('employer');
 
     return { user, tokens };
   }
