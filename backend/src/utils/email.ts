@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { logger } from './logger';
 
 interface EmailOptions {
@@ -9,33 +9,46 @@ interface EmailOptions {
 }
 
 class EmailService {
-  private resend: Resend | null = null;
+  private transporter: nodemailer.Transporter | null = null;
   private isConfigured: boolean = false;
   private isDevelopment: boolean = process.env.NODE_ENV === 'development';
 
   constructor() {
-    this.initializeResend();
+    this.initializeSMTP();
   }
 
-  private initializeResend(): void {
-    const resendApiKey = process.env.RESEND_API_KEY;
+  private initializeSMTP(): void {
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
 
-    if (!resendApiKey) {
+    if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
       logger.warn('⚠️  EMAIL SERVICE NOT CONFIGURED:');
-      logger.warn('   RESEND_API_KEY is missing in environment variables.');
-      logger.warn('   Required: RESEND_API_KEY, FROM_EMAIL');
+      logger.warn('   SMTP credentials are missing in environment variables.');
+      logger.warn('   Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
       logger.warn('   Emails will be LOGGED TO CONSOLE in development mode.');
-      logger.warn('   Get your API key from https://resend.com/api-keys');
       this.isConfigured = false;
       return;
     }
 
     try {
-      this.resend = new Resend(resendApiKey);
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: Number(smtpPort),
+        secure: true, // true for port 465, false for other ports
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+
       this.isConfigured = true;
-      logger.info('✅ Email service configured successfully with Resend API');
+      logger.info('✅ Email service configured successfully with SMTP');
+      logger.info(`   Host: ${smtpHost}:${smtpPort}`);
+      logger.info(`   User: ${smtpUser}`);
     } catch (error) {
-      logger.error('❌ Failed to initialize Resend:', error);
+      logger.error('❌ Failed to initialize SMTP transporter:', error);
       this.isConfigured = false;
     }
   }
@@ -43,14 +56,18 @@ class EmailService {
   async send(options: EmailOptions): Promise<void> {
     console.log('🚨 Email.send() called!', { to: options.to, subject: options.subject });
     
+    const fromName = process.env.FROM_NAME || 'AI Job Platform';
+    const fromEmail = process.env.SMTP_USER; // Use SMTP user as sender
+    
     const mailOptions = {
-      from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
+      from: `"${fromName}" <${fromEmail}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
+      text: options.text,
     };
 
-    // In development mode without Resend API key, log the email details
+    // In development mode without SMTP config, log the email details
     if (!this.isConfigured) {
       if (this.isDevelopment) {
         console.log('\n📧 ========== EMAIL (Development Mode - Not Sent) ==========');
@@ -100,30 +117,29 @@ class EmailService {
         return;
       } else {
         // In production without config, throw error
-        const error = new Error('Email service not configured - RESEND_API_KEY missing');
-        logger.error('❌ Cannot send email: Resend API key not configured in production environment');
-        logger.error('   Please set RESEND_API_KEY environment variable in Render dashboard');
+        const error = new Error('Email service not configured - SMTP credentials missing');
+        logger.error('❌ Cannot send email: SMTP credentials not configured in production environment');
+        logger.error('   Please set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS environment variables');
         throw error;
       }
     }
 
     try {
-      const { data, error } = await this.resend!.emails.send({
-        from: mailOptions.from,
-        to: mailOptions.to,
-        subject: mailOptions.subject,
-        html: mailOptions.html,
-      });
+      const info = await this.transporter!.sendMail(mailOptions);
       
-      if (error) {
-        throw error;
+      console.log('📧 Email sent successfully via SMTP:', info.messageId);
+      logger.info(`✅ Email sent successfully via SMTP to ${options.to}`);
+      logger.info(`   Message ID: ${info.messageId}`);
+      
+      if (info.accepted && info.accepted.length > 0) {
+        logger.info(`   Accepted: ${info.accepted.join(', ')}`);
       }
-      
-      console.log('📧 Email sent successfully via Resend API:', data);
-      logger.info(`✅ Email sent successfully via Resend API to ${options.to}`, data);
+      if (info.rejected && info.rejected.length > 0) {
+        logger.warn(`   Rejected: ${info.rejected.join(', ')}`);
+      }
     } catch (error: any) {
-      console.error('❌ Resend API Dispatch Error:', error);
-      logger.error('❌ Resend API sending failed:', error.message);
+      console.error('❌ SMTP Dispatch Error:', error);
+      logger.error('❌ SMTP sending failed:', error.message);
       logger.error('   Error name:', error.name);
       
       // Extract OTP code for debugging
