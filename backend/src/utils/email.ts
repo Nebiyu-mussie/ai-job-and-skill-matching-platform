@@ -1,5 +1,5 @@
-import nodemailer from 'nodemailer';
 import { logger } from './logger';
+import axios from 'axios';
 
 interface EmailOptions {
   to: string;
@@ -9,71 +9,44 @@ interface EmailOptions {
 }
 
 class EmailService {
-  private transporter: nodemailer.Transporter | null = null;
+  private emailApiUrl: string;
+  private apiSecretKey: string;
   private isConfigured: boolean = false;
   private isDevelopment: boolean = process.env.NODE_ENV === 'development';
 
   constructor() {
-    this.initializeSMTP();
+    this.emailApiUrl = `${process.env.FRONTEND_URL}/api/send-email`;
+    this.apiSecretKey = process.env.API_SECRET_KEY || '';
+    this.initializeEmailProxy();
   }
 
-  private initializeSMTP(): void {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+  private initializeEmailProxy(): void {
+    const frontendUrl = process.env.FRONTEND_URL;
+    const apiSecretKey = process.env.API_SECRET_KEY;
 
-    if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+    if (!frontendUrl || !apiSecretKey) {
       logger.warn('⚠️  EMAIL SERVICE NOT CONFIGURED:');
-      logger.warn('   SMTP credentials are missing in environment variables.');
-      logger.warn('   Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
+      logger.warn('   FRONTEND_URL or API_SECRET_KEY is missing in environment variables.');
+      logger.warn('   Required: FRONTEND_URL, API_SECRET_KEY');
       logger.warn('   Emails will be LOGGED TO CONSOLE in development mode.');
       this.isConfigured = false;
       return;
     }
 
-    try {
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: Number(smtpPort),
-        secure: true, // true for port 465, false for other ports
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
-
-      this.isConfigured = true;
-      logger.info('✅ Email service configured successfully with SMTP');
-      logger.info(`   Host: ${smtpHost}:${smtpPort}`);
-      logger.info(`   User: ${smtpUser}`);
-    } catch (error) {
-      logger.error('❌ Failed to initialize SMTP transporter:', error);
-      this.isConfigured = false;
-    }
+    this.isConfigured = true;
+    logger.info('✅ Email service configured successfully with Vercel proxy');
+    logger.info(`   Proxy URL: ${this.emailApiUrl}`);
   }
 
   async send(options: EmailOptions): Promise<void> {
     console.log('🚨 Email.send() called!', { to: options.to, subject: options.subject });
-    
-    const fromName = process.env.FROM_NAME || 'AI Job Platform';
-    const fromEmail = process.env.SMTP_USER; // Use SMTP user as sender
-    
-    const mailOptions = {
-      from: `"${fromName}" <${fromEmail}>`,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-    };
 
-    // In development mode without SMTP config, log the email details
+    // In development mode without config, log the email details
     if (!this.isConfigured) {
       if (this.isDevelopment) {
         console.log('\n📧 ========== EMAIL (Development Mode - Not Sent) ==========');
-        console.log(`To: ${mailOptions.to}`);
-        console.log(`Subject: ${mailOptions.subject}`);
-        console.log(`From: ${mailOptions.from}`);
+        console.log(`To: ${options.to}`);
+        console.log(`Subject: ${options.subject}`);
         
         // Extract OTP code from HTML for development
         const otpMatch = options.html.match(/font-family: 'Courier New', monospace;">(\d{6})</);
@@ -96,9 +69,8 @@ class EmailService {
         console.log('📧 ========================================================\n');
         
         logger.info('📧 ========== EMAIL (Development Mode - Not Sent) ==========');
-        logger.info(`To: ${mailOptions.to}`);
-        logger.info(`Subject: ${mailOptions.subject}`);
-        logger.info(`From: ${mailOptions.from}`);
+        logger.info(`To: ${options.to}`);
+        logger.info(`Subject: ${options.subject}`);
         
         if (otpMatch && otpMatch[1]) {
           logger.info(`🔢 OTP CODE: ${otpMatch[1]}`);
@@ -117,30 +89,53 @@ class EmailService {
         return;
       } else {
         // In production without config, throw error
-        const error = new Error('Email service not configured - SMTP credentials missing');
-        logger.error('❌ Cannot send email: SMTP credentials not configured in production environment');
-        logger.error('   Please set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS environment variables');
+        const error = new Error('Email service not configured - FRONTEND_URL or API_SECRET_KEY missing');
+        logger.error('❌ Cannot send email: Email proxy not configured in production environment');
+        logger.error('   Please set FRONTEND_URL and API_SECRET_KEY environment variables');
         throw error;
       }
     }
 
     try {
-      const info = await this.transporter!.sendMail(mailOptions);
-      
-      console.log('📧 Email sent successfully via SMTP:', info.messageId);
-      logger.info(`✅ Email sent successfully via SMTP to ${options.to}`);
-      logger.info(`   Message ID: ${info.messageId}`);
-      
-      if (info.accepted && info.accepted.length > 0) {
-        logger.info(`   Accepted: ${info.accepted.join(', ')}`);
-      }
-      if (info.rejected && info.rejected.length > 0) {
-        logger.warn(`   Rejected: ${info.rejected.join(', ')}`);
+      // Call Vercel serverless function via HTTP
+      const response = await axios.post(
+        this.emailApiUrl,
+        {
+          email: options.to,
+          subject: options.subject,
+          html: options.html,
+          apiSecretKey: this.apiSecretKey,
+        },
+        {
+          timeout: 30000, // 30 second timeout
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.success) {
+        console.log('📧 Email sent successfully via Vercel proxy:', response.data.messageId);
+        logger.info(`✅ Email sent successfully via Vercel proxy to ${options.to}`);
+        logger.info(`   Message ID: ${response.data.messageId}`);
+        
+        if (response.data.accepted && response.data.accepted.length > 0) {
+          logger.info(`   Accepted: ${response.data.accepted.join(', ')}`);
+        }
+        if (response.data.rejected && response.data.rejected.length > 0) {
+          logger.warn(`   Rejected: ${response.data.rejected.join(', ')}`);
+        }
+      } else {
+        throw new Error('Email API returned unsuccessful response');
       }
     } catch (error: any) {
-      console.error('❌ SMTP Dispatch Error:', error);
-      logger.error('❌ SMTP sending failed:', error.message);
-      logger.error('   Error name:', error.name);
+      console.error('❌ Email Proxy Dispatch Error:', error.message);
+      logger.error('❌ Email sending via proxy failed:', error.message);
+      
+      if (error.response) {
+        logger.error('   Status:', error.response.status);
+        logger.error('   Data:', JSON.stringify(error.response.data));
+      }
       
       // Extract OTP code for debugging
       const otpMatch = options.html.match(/font-family: 'Courier New', monospace;">(\d{6})</);
@@ -164,11 +159,11 @@ class EmailService {
       }
       
       logger.error('📧 Email details (for manual delivery):');
-      logger.error(`   To: ${mailOptions.to}`);
-      logger.error(`   Subject: ${mailOptions.subject}`);
+      logger.error(`   To: ${options.to}`);
+      logger.error(`   Subject: ${options.subject}`);
       
       // THROW the error so caller can handle it appropriately
-      throw error;
+      throw new Error(`Failed to send email via proxy: ${error.message}`);
     }
   }
 

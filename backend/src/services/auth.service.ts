@@ -48,6 +48,8 @@ class AuthService {
       isEmailVerified: false, // Start as unverified
     });
 
+    let employerId: any = null;
+
     // Create employer profile if role is employer
     if (data.role === 'employer' && data.companyName) {
       const employer = await Employer.create({
@@ -57,6 +59,7 @@ class AuthService {
         location: { city: data.city || 'Addis Ababa', country: 'Ethiopia' },
         contactEmail: data.email,
       });
+      employerId = employer._id;
       user.employer = employer._id;
       await user.save();
     }
@@ -72,8 +75,22 @@ class AuthService {
     } catch (emailError: any) {
       console.error('❌ Failed to send OTP email:', emailError);
       console.log('🔢 OTP Code for debugging:', otp);
-      // Delete the user if email fails - they can't verify without the OTP
+      
+      // DATABASE ROLLBACK: Delete created records if email fails
+      console.log('🗑️  Rolling back database: deleting user and employer profile...');
+      
+      // Delete employer profile if it was created
+      if (employerId) {
+        await Employer.findByIdAndDelete(employerId);
+        console.log('   ✅ Employer profile deleted');
+      }
+      
+      // Delete the user account
       await User.findByIdAndDelete(user._id);
+      console.log('   ✅ User account deleted');
+      
+      console.log('✅ Database rollback complete - user can retry registration');
+      
       throw ApiError.internal('Failed to send verification email. Please try again.');
     }
 
