@@ -131,7 +131,7 @@ class NotificationService {
       message: `Your application for ${jobTitle} at ${companyName} is now ${status}`,
       link: `/dashboard/applications/${applicationId}`,
       data: { applicationId, status },
-      priority: status === 'offered' || status === 'hired' ? 'high' : 'normal',
+      priority: status === 'accepted' ? 'high' : 'normal',
     });
   }
 

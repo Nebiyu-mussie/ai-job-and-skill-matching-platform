@@ -239,9 +239,8 @@ class EmailService {
     const statusColors: Record<string, string> = {
       reviewing: '#F59E0B',
       shortlisted: '#10B981',
-      interviewed: '#3B82F6',
-      offered: '#8B5CF6',
-      hired: '#059669',
+      interview: '#3B82F6',
+      accepted: '#059669',
       rejected: '#EF4444',
     };
     const color = statusColors[status] || '#6B7280';

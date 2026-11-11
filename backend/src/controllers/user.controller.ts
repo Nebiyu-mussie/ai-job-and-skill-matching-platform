@@ -140,7 +140,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response, next: N
       Application.countDocuments({ applicant: req.user._id, status: 'pending' }),
       Application.countDocuments({
         applicant: req.user._id,
-        status: { $in: ['shortlisted', 'interviewed'] },
+        status: { $in: ['shortlisted', 'interview'] },
       }),
       Application.countDocuments({ applicant: req.user._id, status: 'rejected' }),
       User.findById(req.user._id).select('profileCompleteness'),

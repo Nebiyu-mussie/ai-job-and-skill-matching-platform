@@ -237,7 +237,7 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response, n
     if (status === 'shortlisted') {
       await Job.findByIdAndUpdate(application.job, { $inc: { shortlistCount: 1 } });
     }
-    if (interviewSchedule && status === 'interviewed') {
+    if (interviewSchedule && status === 'interview') {
       application.interviewSchedule = interviewSchedule;
     }
 
@@ -273,7 +273,7 @@ export const withdrawApplication = async (req: AuthRequest, res: Response, next:
 
     if (!application) throw ApiError.notFound('Application not found');
 
-    if (['hired', 'offered'].includes(application.status)) {
+    if (['accepted'].includes(application.status)) {
       throw ApiError.badRequest('Cannot withdraw from an accepted offer');
     }
 
