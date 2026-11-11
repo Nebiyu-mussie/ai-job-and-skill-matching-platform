@@ -61,18 +61,22 @@ export default function ApplicationDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application-detail', id] });
       queryClient.invalidateQueries({ queryKey: ['employer-applications'] });
-      toast.success(application?.isStarred ? 'Removed from starred' : 'Added to starred');
+      const currentApp = data?.data?.application;
+      toast.success(currentApp?.isStarred ? 'Removed from starred' : 'Added to starred');
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Failed to update starred status');
     },
   });
 
+  // Early returns for loading and error states BEFORE accessing data
   if (isLoading) {
     return <LoadingSpinner fullScreen />;
   }
 
-  if (isError || !data?.data?.application) {
+  const application = data?.data?.application;
+
+  if (isError || !application) {
     return (
       <div className="space-y-6">
         <button
@@ -97,12 +101,11 @@ export default function ApplicationDetailPage() {
     );
   }
 
-  const application = data.data.application;
-  const candidate = application.applicant;
-  const job = application.job;
+  const candidate = application?.applicant;
+  const job = application?.job;
 
   const handleStatusChange = () => {
-    if (selectedStatus && selectedStatus !== application.status) {
+    if (selectedStatus && selectedStatus !== application?.status) {
       updateStatusMutation.mutate(selectedStatus);
     }
   };
@@ -156,7 +159,7 @@ export default function ApplicationDetailPage() {
           className="p-2 hover:bg-secondary rounded-lg transition"
         >
           <Star 
-            className={`h-6 w-6 ${application.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`}
+            className={`h-6 w-6 ${application?.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`}
           />
         </button>
       </div>
@@ -207,7 +210,7 @@ export default function ApplicationDetailPage() {
                   <span>{candidate.location}</span>
                 </div>
               )}
-              {application.appliedAt && (
+              {application?.appliedAt && (
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span>Applied {formatDate(application.appliedAt)}</span>
@@ -244,7 +247,7 @@ export default function ApplicationDetailPage() {
       </div>
 
       {/* AI Match Score - Prominent Display */}
-      {application.matchScore != null && (
+      {application?.matchScore != null && (
         <div className="border rounded-lg p-6 bg-gradient-to-br from-primary/5 to-primary/10">
           <div className="flex items-center gap-3 mb-4">
             <div className={`rounded-full p-3 ${getMatchScoreColor(application.matchScore)}`}>
@@ -278,14 +281,14 @@ export default function ApplicationDetailPage() {
           </div>
 
           {/* AI Matching Breakdown */}
-          {application.matchDetails && (
+          {application?.matchDetails && (
             <div className="border-t pt-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
                 AI Matching Analysis
               </h3>
               <div className="space-y-2 text-sm">
-                {typeof application.matchDetails === 'object' ? (
+                {typeof application?.matchDetails === 'object' && application.matchDetails ? (
                   Object.entries(application.matchDetails).map(([key, value]) => (
                     <div key={key} className="flex justify-between items-center p-2 bg-white dark:bg-gray-800 rounded">
                       <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
@@ -293,13 +296,13 @@ export default function ApplicationDetailPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-muted-foreground">{application.matchDetails}</p>
+                  <p className="text-muted-foreground">{application?.matchDetails}</p>
                 )}
               </div>
             </div>
           )}
 
-          {application.matchReason && (
+          {application?.matchReason && (
             <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg">
               <h4 className="font-semibold mb-2">Why this match?</h4>
               <p className="text-sm text-muted-foreground leading-relaxed">{application.matchReason}</p>
@@ -317,8 +320,8 @@ export default function ApplicationDetailPage() {
             <Clock className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm font-medium">Current Status:</span>
           </div>
-          <span className={`px-4 py-2 rounded-lg capitalize font-semibold ${getStatusColor(application.status)}`}>
-            {application.status}
+          <span className={`px-4 py-2 rounded-lg capitalize font-semibold ${getStatusColor(application?.status || '')}`}>
+            {application?.status || 'N/A'}
           </span>
         </div>
 
@@ -338,7 +341,7 @@ export default function ApplicationDetailPage() {
           </select>
           <button
             onClick={handleStatusChange}
-            disabled={!selectedStatus || selectedStatus === application.status || updateStatusMutation.isPending}
+            disabled={!selectedStatus || selectedStatus === application?.status || updateStatusMutation.isPending}
             className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
@@ -354,10 +357,10 @@ export default function ApplicationDetailPage() {
             Skills & Expertise
           </h2>
           <div className="flex flex-wrap gap-2">
-            {candidate.skills.map((skill: any, idx: number) => (
+            {(candidate.skills || []).map((skill: any, idx: number) => (
               <div key={idx} className="flex items-center gap-2 bg-secondary px-3 py-2 rounded-lg">
-                <span className="font-medium">{skill.name}</span>
-                {skill.level && (
+                <span className="font-medium">{skill?.name || 'N/A'}</span>
+                {skill?.level && (
                   <span className="text-xs text-muted-foreground capitalize">({skill.level})</span>
                 )}
               </div>
@@ -374,14 +377,14 @@ export default function ApplicationDetailPage() {
             Work Experience
           </h2>
           <div className="space-y-4">
-            {candidate.experience.map((exp: any, idx: number) => (
+            {(candidate.experience || []).map((exp: any, idx: number) => (
               <div key={idx} className="border-l-2 border-primary pl-4 pb-4 last:pb-0">
-                <h3 className="font-semibold text-lg">{exp.title}</h3>
-                <p className="text-muted-foreground">{exp.company}</p>
+                <h3 className="font-semibold text-lg">{exp?.title || 'N/A'}</h3>
+                <p className="text-muted-foreground">{exp?.company || 'N/A'}</p>
                 <p className="text-sm text-muted-foreground">
-                  {exp.startDate || 'N/A'} - {exp.current ? 'Present' : (exp.endDate || 'N/A')}
+                  {exp?.startDate || 'N/A'} - {exp?.current ? 'Present' : (exp?.endDate || 'N/A')}
                 </p>
-                {exp.description && (
+                {exp?.description && (
                   <p className="mt-2 text-sm">{exp.description}</p>
                 )}
               </div>
@@ -398,14 +401,14 @@ export default function ApplicationDetailPage() {
             Education
           </h2>
           <div className="space-y-4">
-            {candidate.education.map((edu: any, idx: number) => (
+            {(candidate.education || []).map((edu: any, idx: number) => (
               <div key={idx} className="border-l-2 border-primary pl-4 pb-4 last:pb-0">
-                <h3 className="font-semibold text-lg">{edu.degree}</h3>
-                <p className="text-muted-foreground">{edu.institution}</p>
+                <h3 className="font-semibold text-lg">{edu?.degree || 'N/A'}</h3>
+                <p className="text-muted-foreground">{edu?.institution || 'N/A'}</p>
                 <p className="text-sm text-muted-foreground">
-                  {edu.startYear || 'N/A'} - {edu.current ? 'Present' : (edu.endYear || 'N/A')}
+                  {edu?.startYear || 'N/A'} - {edu?.current ? 'Present' : (edu?.endYear || 'N/A')}
                 </p>
-                {edu.fieldOfStudy && (
+                {edu?.fieldOfStudy && (
                   <p className="mt-1 text-sm">Field: {edu.fieldOfStudy}</p>
                 )}
               </div>
@@ -415,11 +418,11 @@ export default function ApplicationDetailPage() {
       )}
 
       {/* Resume Download */}
-      {application.resume && (
+      {application?.resume && (
         <div className="border rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4">Resume & Documents</h2>
           <a
-            href={application.resume}
+            href={application?.resume || '#'}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-secondary hover:bg-secondary/80 px-4 py-3 rounded-lg transition"
@@ -431,11 +434,11 @@ export default function ApplicationDetailPage() {
       )}
 
       {/* Cover Letter */}
-      {application.coverLetter && (
+      {application?.coverLetter && (
         <div className="border rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4">Cover Letter</h2>
           <div className="prose dark:prose-invert max-w-none">
-            <p className="whitespace-pre-wrap">{application.coverLetter}</p>
+            <p className="whitespace-pre-wrap">{application?.coverLetter || ''}</p>
           </div>
         </div>
       )}
@@ -444,13 +447,13 @@ export default function ApplicationDetailPage() {
       <div className="flex items-center gap-4 pt-4 border-t">
         <button
           onClick={() => {
-            if (application.status === 'accepted') {
+            if (application?.status === 'accepted') {
               toast.success('Application already accepted');
             } else {
               updateStatusMutation.mutate('accepted');
             }
           }}
-          disabled={application.status === 'accepted'}
+          disabled={application?.status === 'accepted'}
           className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           <CheckCircle className="h-5 w-5" />
@@ -458,13 +461,13 @@ export default function ApplicationDetailPage() {
         </button>
         <button
           onClick={() => {
-            if (application.status === 'rejected') {
+            if (application?.status === 'rejected') {
               toast.success('Application already rejected');
             } else {
               updateStatusMutation.mutate('rejected');
             }
           }}
-          disabled={application.status === 'rejected'}
+          disabled={application?.status === 'rejected'}
           className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           <XCircle className="h-5 w-5" />
