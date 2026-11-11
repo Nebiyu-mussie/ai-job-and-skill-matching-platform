@@ -49,6 +49,7 @@ const PostJobPage = lazy(() => import('@/pages/dashboard/employer/PostJobPage'))
 const ManageJobsPage = lazy(() => import('@/pages/dashboard/employer/ManageJobsPage'));
 const ApplicationsPage = lazy(() => import('@/pages/dashboard/employer/ApplicationsPage'));
 const ApplicationDetailPage = lazy(() => import('@/pages/dashboard/employer/ApplicationDetailPage'));
+const EditJobPage = lazy(() => import('@/pages/dashboard/employer/EditJobPage'));
 const CandidatesPage = lazy(() => import('@/pages/dashboard/employer/CandidatesPage'));
 const EmployerProfilePage = lazy(() => import('@/pages/dashboard/employer/ProfilePage'));
 const EmployerAnalyticsPage = lazy(() => import('@/pages/dashboard/employer/AnalyticsPage'));
@@ -120,6 +121,7 @@ export default function App() {
             <Route path="/employer/dashboard" element={<SuspenseWrap><EmployerDashboard /></SuspenseWrap>} />
             <Route path="/employer/post-job" element={<SuspenseWrap><PostJobPage /></SuspenseWrap>} />
             <Route path="/employer/jobs" element={<SuspenseWrap><ManageJobsPage /></SuspenseWrap>} />
+            <Route path="/employer/jobs/:id/edit" element={<SuspenseWrap><EditJobPage /></SuspenseWrap>} />
             <Route path="/employer/applications" element={<SuspenseWrap><ApplicationsPage /></SuspenseWrap>} />
             <Route path="/employer/applications/:id" element={<SuspenseWrap><ApplicationDetailPage /></SuspenseWrap>} />
             <Route path="/employer/candidates" element={<SuspenseWrap><CandidatesPage /></SuspenseWrap>} />

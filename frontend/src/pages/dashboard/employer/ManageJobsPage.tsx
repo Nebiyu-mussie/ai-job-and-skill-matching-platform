@@ -75,12 +75,13 @@ export default function ManageJobsPage() {
                   >
                     <Eye className="h-5 w-5" />
                   </Link>
-                  <button 
+                  <Link
+                    to={`/employer/jobs/${job._id}/edit`}
                     className="p-2 border rounded hover:bg-gray-50"
                     title="Edit Job"
                   >
                     <Edit className="h-5 w-5" />
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
