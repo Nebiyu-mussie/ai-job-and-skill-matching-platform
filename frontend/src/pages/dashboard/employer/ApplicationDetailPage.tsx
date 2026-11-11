@@ -141,6 +141,18 @@ export default function ApplicationDetailPage() {
     }
   };
 
+  const formatMonthYear = (date: any) => {
+    if (!date) return 'N/A';
+    try {
+      return new Date(date).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
   const formatLocation = (location: any) => {
     if (!location) return null;
     
@@ -405,7 +417,7 @@ export default function ApplicationDetailPage() {
                 <h3 className="font-semibold text-lg">{exp?.title || 'N/A'}</h3>
                 <p className="text-muted-foreground">{exp?.company || 'N/A'}</p>
                 <p className="text-sm text-muted-foreground">
-                  {exp?.startDate || 'N/A'} - {exp?.current ? 'Present' : (exp?.endDate || 'N/A')}
+                  {formatMonthYear(exp?.startDate)} - {exp?.current ? 'Present' : formatMonthYear(exp?.endDate)}
                 </p>
                 {exp?.description && (
                   <p className="mt-2 text-sm">{exp.description}</p>

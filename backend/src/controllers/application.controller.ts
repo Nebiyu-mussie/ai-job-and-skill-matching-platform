@@ -194,7 +194,11 @@ export const getApplicationById = async (req: AuthRequest, res: Response, next: 
 
     // Mark as read if employer is viewing
     if (isEmployer && !application.isRead) {
-      await Application.findByIdAndUpdate(req.params.id, { isRead: true, reviewedAt: new Date() });
+      await Application.findByIdAndUpdate(
+        req.params.id, 
+        { isRead: true, reviewedAt: new Date() },
+        { runValidators: false, new: true } // Skip validators for simple flag update
+      );
     }
 
     ApiResponse.success(res, { application });
