@@ -105,28 +105,36 @@ export default function EmployerDashboard() {
     { 
       icon: Briefcase, 
       label: 'Active Jobs', 
-      value: stats?.overview?.totalJobs || 0, 
+      value: stats?.activeJobs || 0, 
       color: 'text-blue-500' 
     },
     { 
       icon: FileText, 
       label: 'Total Applications', 
-      value: stats?.overview?.totalApplications || 0, 
+      value: stats?.totalApplications || 0, 
       color: 'text-green-500' 
     },
     { 
       icon: Users, 
       label: 'Avg Match Score', 
-      value: stats?.overview?.avgMatchScore ? `${stats.overview.avgMatchScore}%` : '0%', 
+      value: stats?.avgMatchScore ? `${stats.avgMatchScore}%` : '0%', 
       color: 'text-purple-500' 
     },
     { 
       icon: TrendingUp, 
       label: 'Profile Views', 
-      value: stats?.overview?.totalViews || 0, 
+      value: stats?.totalViews || 0, 
       color: 'text-orange-500' 
     },
   ];
+
+  // Convert applicationsByStatus object to array for rendering
+  const statusArray = stats?.applicationsByStatus 
+    ? Object.entries(stats.applicationsByStatus).map(([status, count]) => ({
+        _id: status,
+        count: count
+      }))
+    : [];
 
   return (
     <div className="space-y-8">
@@ -147,9 +155,9 @@ export default function EmployerDashboard() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="border rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Applications by Status</h2>
-          {stats?.applicationsByStatus && stats.applicationsByStatus.length > 0 ? (
+          {statusArray.length > 0 ? (
             <div className="space-y-2">
-              {stats.applicationsByStatus.map((status: any) => (
+              {statusArray.map((status: any) => (
                 <div key={status._id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <span className="capitalize text-sm">{status._id}</span>
                   <span className="font-semibold">{status.count}</span>
@@ -162,13 +170,13 @@ export default function EmployerDashboard() {
         </div>
         
         <div className="border rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Top Jobs by Applications</h2>
-          {stats?.applicationsByJob && stats.applicationsByJob.length > 0 ? (
+          <h2 className="text-xl font-semibold mb-4">Top Performing Jobs</h2>
+          {stats?.topPerformingJobs && stats.topPerformingJobs.length > 0 ? (
             <div className="space-y-2">
-              {stats.applicationsByJob.slice(0, 5).map((job: any) => (
-                <div key={job._id.jobId} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <span className="text-sm truncate flex-1">{job._id.title}</span>
-                  <span className="font-semibold ml-2">{job.count}</span>
+              {stats.topPerformingJobs.map((job: any) => (
+                <div key={job._id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <span className="text-sm truncate flex-1">{job.title}</span>
+                  <span className="font-semibold ml-2">{job.applicationCount || 0} apps</span>
                 </div>
               ))}
             </div>
