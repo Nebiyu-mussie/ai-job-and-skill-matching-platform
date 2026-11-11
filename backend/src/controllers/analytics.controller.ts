@@ -217,23 +217,94 @@ export const getEmployerAnalytics = async (req: AuthRequest, res: Response, next
     const employer = await Employer.findOne({ user: req.user._id });
     if (!employer) throw ApiError.notFound('Employer profile not found');
 
-    const [activeJobs, totalApplications, pendingApplications, recentApplications] = await Promise.all([
-      Job.countDocuments({ employer: employer._id, status: 'active' }),
+    // Get all jobs for this employer
+    const employerJobs = await Job.find({ employer: employer._id }).select('_id viewCount').lean();
+    const jobIds = employerJobs.map(job => job._id);
+
+    // Calculate total views across all jobs
+    const totalViews = employerJobs.reduce((sum, job) => sum + (job.viewCount || 0), 0);
+
+    // Get application statistics
+    const [
+      totalApplications,
+      pendingApplications,
+      acceptedApplications,
+      avgMatchScoreResult,
+      applicationsByStatus,
+      recentApplications,
+      topPerformingJobs
+    ] = await Promise.all([
+      // Total applications for this employer
       Application.countDocuments({ employer: employer._id }),
+      
+      // Pending applications
       Application.countDocuments({ employer: employer._id, status: 'pending' }),
+      
+      // Accepted applications
+      Application.countDocuments({ employer: employer._id, status: 'accepted' }),
+      
+      // Average match score across all applications
+      Application.aggregate([
+        { $match: { employer: employer._id, matchScore: { $exists: true, $ne: null } } },
+        { $group: { _id: null, avgScore: { $avg: '$matchScore' } } }
+      ]),
+      
+      // Applications grouped by status
+      Application.aggregate([
+        { $match: { employer: employer._id } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      
+      // Recent applications
       Application.find({ employer: employer._id })
         .sort({ createdAt: -1 })
         .limit(5)
         .populate('applicant', 'firstName lastName profileImage')
         .populate('job', 'title')
         .lean(),
+      
+      // Top performing jobs (by application count)
+      Job.find({ employer: employer._id })
+        .sort({ applicationCount: -1 })
+        .limit(5)
+        .select('title applicationCount viewCount status')
+        .lean()
     ]);
 
+    // Calculate average match score
+    const avgMatchScore = avgMatchScoreResult.length > 0 
+      ? Math.round(avgMatchScoreResult[0].avgScore || 0) 
+      : 0;
+
+    // Calculate conversion rate (applications / views * 100)
+    const conversionRate = totalViews > 0 
+      ? Math.round((totalApplications / totalViews) * 100) 
+      : 0;
+
+    // Format applications by status for easier consumption
+    const statusBreakdown = applicationsByStatus.reduce((acc: any, item: any) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
     ApiResponse.success(res, {
-      activeJobs,
+      // Metrics for the dashboard cards
+      totalViews,
+      totalApplicants: totalApplications,
+      conversionRate,
+      avgMatchScore,
+      
+      // Additional detailed stats
+      activeJobs: await Job.countDocuments({ employer: employer._id, status: 'active' }),
       totalApplications,
       pendingApplications,
+      acceptedApplications,
+      
+      // Breakdown data
+      applicationsByStatus: statusBreakdown,
       recentApplications,
+      topPerformingJobs,
     });
   } catch (error) {
     next(error);
