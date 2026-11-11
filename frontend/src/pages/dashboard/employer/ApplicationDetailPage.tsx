@@ -141,6 +141,29 @@ export default function ApplicationDetailPage() {
     }
   };
 
+  const formatLocation = (location: any) => {
+    if (!location) return null;
+    
+    // If location is a string, return it directly
+    if (typeof location === 'string') return location;
+    
+    // If location is an object with city/country properties
+    if (typeof location === 'object') {
+      const parts = [];
+      if (location.city) parts.push(location.city);
+      if (location.country) parts.push(location.country);
+      const locationStr = parts.join(', ');
+      
+      if (location.isRemote) {
+        return locationStr ? `${locationStr} (Remote)` : 'Remote';
+      }
+      
+      return locationStr || null;
+    }
+    
+    return null;
+  };
+
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
@@ -204,10 +227,10 @@ export default function ApplicationDetailPage() {
                   <span>{candidate.phone}</span>
                 </div>
               )}
-              {candidate?.location && (
+              {candidate?.location && formatLocation(candidate.location) && (
                 <div className="flex items-center gap-2 text-sm">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{candidate.location}</span>
+                  <span>{formatLocation(candidate.location)}</span>
                 </div>
               )}
               {application?.appliedAt && (
@@ -229,10 +252,10 @@ export default function ApplicationDetailPage() {
             </div>
             <h3 className="text-xl font-semibold">{job.title}</h3>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-              {job.location && (
+              {job.location && formatLocation(job.location) && (
                 <div className="flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
-                  <span>{job.location}</span>
+                  <span>{formatLocation(job.location)}</span>
                 </div>
               )}
               {job.type && (
