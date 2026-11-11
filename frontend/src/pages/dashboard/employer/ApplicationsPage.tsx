@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Link } from 'react-router-dom';
 
 export default function ApplicationsPage() {
   const { data, isLoading } = useQuery({
@@ -36,9 +37,12 @@ export default function ApplicationsPage() {
                     <span>Match Score: {app.matchScore || 0}%</span>
                   </div>
                 </div>
-                <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90">
+                <Link 
+                  to={`/employer/applications/${app._id}`}
+                  className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90"
+                >
                   View Details
-                </button>
+                </Link>
               </div>
             </div>
           ))}
