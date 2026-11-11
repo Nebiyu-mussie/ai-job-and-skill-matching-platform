@@ -99,7 +99,7 @@ export default function CandidatesPage() {
             return (
               <Link
                 key={application._id}
-                to={`/dashboard/employer/applications/${application._id}`}
+                to={`/employer/applications/${application._id}`}
                 className="border rounded-lg p-6 hover:shadow-lg transition hover:border-primary"
               >
                 <div className="flex items-start gap-4">
