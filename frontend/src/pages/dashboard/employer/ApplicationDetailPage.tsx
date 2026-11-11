@@ -28,7 +28,7 @@ export default function ApplicationDetailPage() {
   const queryClient = useQueryClient();
   const [selectedStatus, setSelectedStatus] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['application-detail', id],
     queryFn: async () => {
       const response = await api.get(`/applications/${id}`);
@@ -39,7 +39,7 @@ export default function ApplicationDetailPage() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      const response = await api.patch(`/applications/${id}/status`, { status });
+      const response = await api.put(`/applications/${id}/status`, { status });
       return response.data;
     },
     onSuccess: () => {
@@ -48,8 +48,8 @@ export default function ApplicationDetailPage() {
       toast.success('Application status updated successfully');
       setSelectedStatus('');
     },
-    onError: () => {
-      toast.error('Failed to update application status');
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to update application status');
     },
   });
 
@@ -61,32 +61,43 @@ export default function ApplicationDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application-detail', id] });
       queryClient.invalidateQueries({ queryKey: ['employer-applications'] });
-      toast.success(data?.data?.isStarred ? 'Removed from starred' : 'Added to starred');
+      toast.success(application?.isStarred ? 'Removed from starred' : 'Added to starred');
     },
-    onError: () => {
-      toast.error('Failed to update starred status');
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to update starred status');
     },
   });
 
-  if (isLoading) return <LoadingSpinner fullScreen />;
+  if (isLoading) {
+    return <LoadingSpinner fullScreen />;
+  }
 
-  if (!data?.data) {
+  if (isError || !data?.data?.application) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <XCircle className="h-16 w-16 text-red-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Application Not Found</h2>
-        <p className="text-muted-foreground mb-6">This application may have been removed or doesn't exist.</p>
+      <div className="space-y-6">
         <button
           onClick={() => navigate('/employer/candidates')}
-          className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition"
         >
+          <ArrowLeft className="h-5 w-5" />
           Back to Candidates
         </button>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] border rounded-lg p-8">
+          <XCircle className="h-16 w-16 text-red-500 mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Application Not Found</h2>
+          <p className="text-muted-foreground mb-6">This application may have been removed or doesn't exist.</p>
+          <button
+            onClick={() => navigate('/employer/candidates')}
+            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90"
+          >
+            Back to Candidates
+          </button>
+        </div>
       </div>
     );
   }
 
-  const application = data.data;
+  const application = data.data.application;
   const candidate = application.applicant;
   const job = application.job;
 
@@ -112,6 +123,19 @@ export default function ApplicationDetailPage() {
     if (score >= 80) return 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400';
     if (score >= 60) return 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400';
     return 'text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400';
+  };
+
+  const formatDate = (date: any) => {
+    if (!date) return 'N/A';
+    try {
+      return new Date(date).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   return (
@@ -183,14 +207,12 @@ export default function ApplicationDetailPage() {
                   <span>{candidate.location}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>Applied {new Date(application.appliedAt).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}</span>
-              </div>
+              {application.appliedAt && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span>Applied {formatDate(application.appliedAt)}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -357,7 +379,7 @@ export default function ApplicationDetailPage() {
                 <h3 className="font-semibold text-lg">{exp.title}</h3>
                 <p className="text-muted-foreground">{exp.company}</p>
                 <p className="text-sm text-muted-foreground">
-                  {exp.startDate} - {exp.current ? 'Present' : exp.endDate}
+                  {exp.startDate || 'N/A'} - {exp.current ? 'Present' : (exp.endDate || 'N/A')}
                 </p>
                 {exp.description && (
                   <p className="mt-2 text-sm">{exp.description}</p>
@@ -381,7 +403,7 @@ export default function ApplicationDetailPage() {
                 <h3 className="font-semibold text-lg">{edu.degree}</h3>
                 <p className="text-muted-foreground">{edu.institution}</p>
                 <p className="text-sm text-muted-foreground">
-                  {edu.startYear} - {edu.current ? 'Present' : edu.endYear}
+                  {edu.startYear || 'N/A'} - {edu.current ? 'Present' : (edu.endYear || 'N/A')}
                 </p>
                 {edu.fieldOfStudy && (
                   <p className="mt-1 text-sm">Field: {edu.fieldOfStudy}</p>
