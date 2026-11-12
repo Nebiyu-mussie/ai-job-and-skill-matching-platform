@@ -102,6 +102,39 @@ function ProfileTab() {
         ...data,
         benefits: data.benefits ? data.benefits.split(',').map((b: string) => b.trim()).filter(Boolean) : [],
       };
+
+      // Remove empty optional fields to avoid validation errors
+      if (!processedData.website || processedData.website.trim() === '') {
+        delete processedData.website;
+      }
+      if (!processedData.founded || processedData.founded === '') {
+        delete processedData.founded;
+      }
+      if (!processedData.contactPhone || processedData.contactPhone.trim() === '') {
+        delete processedData.contactPhone;
+      }
+
+      // Clean up social links - remove empty ones
+      if (processedData.socialLinks) {
+        const cleanedSocialLinks: any = {};
+        if (processedData.socialLinks.linkedIn && processedData.socialLinks.linkedIn.trim() !== '') {
+          cleanedSocialLinks.linkedIn = processedData.socialLinks.linkedIn;
+        }
+        if (processedData.socialLinks.twitter && processedData.socialLinks.twitter.trim() !== '') {
+          cleanedSocialLinks.twitter = processedData.socialLinks.twitter;
+        }
+        if (processedData.socialLinks.facebook && processedData.socialLinks.facebook.trim() !== '') {
+          cleanedSocialLinks.facebook = processedData.socialLinks.facebook;
+        }
+        
+        // Only include socialLinks if there are any non-empty values
+        if (Object.keys(cleanedSocialLinks).length > 0) {
+          processedData.socialLinks = cleanedSocialLinks;
+        } else {
+          delete processedData.socialLinks;
+        }
+      }
+
       const response = await api.put('/employers/profile', processedData);
       return response.data;
     },
@@ -110,7 +143,40 @@ function ProfileTab() {
       queryClient.invalidateQueries({ queryKey: ['employer-profile'] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      // Extract detailed validation error messages
+      const errorData = error.response?.data;
+      
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        // Handle validation errors array (from express-validator or similar)
+        errorData.errors.forEach((err: any) => {
+          toast.error(err.msg || err.message || 'Validation error');
+        });
+      } else if (errorData?.message) {
+        // Check if it's a Mongoose validation error with details
+        if (errorData.message.includes('validation failed')) {
+          // Try to extract specific field errors from Mongoose
+          const errorMsg = errorData.message;
+          
+          // Extract field-specific errors from Mongoose error message
+          const fieldErrors = errorMsg.match(/([a-zA-Z]+): (.+?)(?:,|$)/g);
+          if (fieldErrors && fieldErrors.length > 0) {
+            fieldErrors.forEach((fieldError: string) => {
+              const match = fieldError.match(/([a-zA-Z]+): (.+?)(?:,|$)/);
+              if (match) {
+                const field = match[1];
+                const message = match[2].trim();
+                toast.error(`${field}: ${message}`);
+              }
+            });
+          } else {
+            toast.error(errorData.message);
+          }
+        } else {
+          toast.error(errorData.message);
+        }
+      } else {
+        toast.error('Failed to update profile');
+      }
     },
   });
 
@@ -396,7 +462,15 @@ function SecurityTab({ logout }: { logout: () => void }) {
       setTimeout(() => logout(), 2000);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to change password');
+      const errorData = error.response?.data;
+      
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        errorData.errors.forEach((err: any) => {
+          toast.error(err.msg || err.message || 'Validation error');
+        });
+      } else {
+        toast.error(errorData?.message || 'Failed to change password');
+      }
     },
   });
 
@@ -521,7 +595,15 @@ function DangerZoneTab({ logout }: { logout: () => void }) {
       logout();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete account');
+      const errorData = error.response?.data;
+      
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        errorData.errors.forEach((err: any) => {
+          toast.error(err.msg || err.message || 'Validation error');
+        });
+      } else {
+        toast.error(errorData?.message || 'Failed to delete account');
+      }
     },
   });
 
