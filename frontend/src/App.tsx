@@ -53,6 +53,7 @@ const EditJobPage = lazy(() => import('@/pages/dashboard/employer/EditJobPage'))
 const CandidatesPage = lazy(() => import('@/pages/dashboard/employer/CandidatesPage'));
 const EmployerProfilePage = lazy(() => import('@/pages/dashboard/employer/ProfilePage'));
 const EmployerAnalyticsPage = lazy(() => import('@/pages/dashboard/employer/AnalyticsPage'));
+const EmployerSettingsPage = lazy(() => import('@/pages/dashboard/employer/SettingsPage'));
 
 const AdminDashboard = lazy(() => import('@/pages/dashboard/admin/DashboardPage'));
 const AdminUsersPage = lazy(() => import('@/pages/dashboard/admin/UsersPage'));
@@ -127,6 +128,7 @@ export default function App() {
             <Route path="/employer/candidates" element={<SuspenseWrap><CandidatesPage /></SuspenseWrap>} />
             <Route path="/employer/profile" element={<SuspenseWrap><EmployerProfilePage /></SuspenseWrap>} />
             <Route path="/employer/analytics" element={<SuspenseWrap><EmployerAnalyticsPage /></SuspenseWrap>} />
+            <Route path="/employer/settings" element={<SuspenseWrap><EmployerSettingsPage /></SuspenseWrap>} />
           </Route>
 
           <Route element={<AuthGuard><RoleGuard roles={['admin']}><AdminLayout /></RoleGuard></AuthGuard>}>

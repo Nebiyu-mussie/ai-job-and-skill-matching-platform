@@ -31,7 +31,8 @@ const employerLinks = [
   { href: '/employer/applications', label: 'Applications', icon: FileText },
   { href: '/employer/candidates', label: 'Candidates', icon: Users },
   { href: '/employer/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/employer/profile', label: 'Company Profile', icon: Settings },
+  { href: '/employer/profile', label: 'Company Profile', icon: Briefcase },
+  { href: '/employer/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function DashboardSidebar() {
