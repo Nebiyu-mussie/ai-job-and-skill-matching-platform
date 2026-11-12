@@ -129,6 +129,7 @@ export default function App() {
             <Route path="/employer/profile" element={<SuspenseWrap><EmployerProfilePage /></SuspenseWrap>} />
             <Route path="/employer/analytics" element={<SuspenseWrap><EmployerAnalyticsPage /></SuspenseWrap>} />
             <Route path="/employer/settings" element={<SuspenseWrap><EmployerSettingsPage /></SuspenseWrap>} />
+            <Route path="/employer/messages" element={<SuspenseWrap><MessagesPage /></SuspenseWrap>} />
           </Route>
 
           <Route element={<AuthGuard><RoleGuard roles={['admin']}><AdminLayout /></RoleGuard></AuthGuard>}>
