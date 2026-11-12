@@ -84,7 +84,8 @@ export const getEmployerPublicProfile = async (req: Request, res: Response, next
     const activeJobs = await Job.find({ employer: employer._id, status: 'active' })
       .sort({ createdAt: -1 })
       .limit(10)
-      .select('title location jobType experienceLevel salary applicationDeadline')
+      .populate('employer', 'companyName logo slug')
+      .select('title location jobType experienceLevel salary applicationDeadline createdAt isFeatured applicationCount')
       .lean();
 
     ApiResponse.success(res, { employer, jobCount, activeJobCount, activeJobs });
