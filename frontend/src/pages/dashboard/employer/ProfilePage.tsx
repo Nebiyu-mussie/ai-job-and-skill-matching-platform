@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import api from '@/lib/api';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Pencil } from 'lucide-react';
 
 export default function EmployerProfilePage() {
   const { data, isLoading } = useQuery({
@@ -28,11 +30,20 @@ export default function EmployerProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">Company Profile</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Company Profile</h1>
+        <Link
+          to="/employer/settings"
+          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <Pencil className="w-4 h-4" />
+          Edit Profile
+        </Link>
+      </div>
 
       <div className="border rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Company Information</h2>
-        <div className="space-y-4">
+        <h2 className="text-xl font-semibold mb-6">Company Information</h2>
+        <div className="space-y-6">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Company Name</label>
             <p className="text-lg">{employer.companyName || 'Not provided'}</p>

@@ -5,6 +5,7 @@ import {
   LayoutDashboard, User, FileText, Briefcase, Bookmark, Target,
   TrendingUp, Lightbulb, MessageSquare, Bell, LogOut, ChevronLeft,
   ChevronRight, PlusCircle, Users, BarChart3, Settings, Home, X, Menu,
+  Building2,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
@@ -31,7 +32,7 @@ const employerLinks = [
   { href: '/employer/applications', label: 'Applications', icon: FileText },
   { href: '/employer/candidates', label: 'Candidates', icon: Users },
   { href: '/employer/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/employer/profile', label: 'Company Profile', icon: Briefcase },
+  { href: '/employer/profile', label: 'Company Profile', icon: Building2 },
   { href: '/employer/settings', label: 'Settings', icon: Settings },
 ];
 
