@@ -17,7 +17,8 @@ import {
   Award,
   GraduationCap,
   Target,
-  TrendingUp
+  TrendingUp,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useState } from 'react';
@@ -479,35 +480,59 @@ export default function ApplicationDetailPage() {
       )}
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-4 pt-4 border-t">
+      <div className="flex flex-col gap-4 pt-4 border-t">
+        {/* Message Candidate Button */}
         <button
-          onClick={() => {
-            if (application?.status === 'accepted') {
-              toast.success('Application already accepted');
-            } else {
-              updateStatusMutation.mutate('accepted');
+          onClick={async () => {
+            try {
+              // Create or get conversation with this candidate
+              await api.post('/messages', {
+                recipientId: candidate?._id,
+                text: `Hi ${candidate?.firstName}, I reviewed your application for ${job?.title}. Let's discuss further.`
+              });
+              toast.success('Message sent! Redirecting to inbox...');
+              setTimeout(() => navigate('/employer/messages'), 1000);
+            } catch (error: any) {
+              toast.error(error?.response?.data?.message || 'Failed to send message');
             }
           }}
-          disabled={application?.status === 'accepted'}
-          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="w-full flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 font-medium"
         >
-          <CheckCircle className="h-5 w-5" />
-          Accept Candidate
+          <MessageSquare className="h-5 w-5" />
+          Message Candidate
         </button>
-        <button
-          onClick={() => {
-            if (application?.status === 'rejected') {
-              toast.success('Application already rejected');
-            } else {
-              updateStatusMutation.mutate('rejected');
-            }
-          }}
-          disabled={application?.status === 'rejected'}
-          className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-        >
-          <XCircle className="h-5 w-5" />
-          Reject Application
-        </button>
+
+        {/* Accept/Reject Buttons */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              if (application?.status === 'accepted') {
+                toast.success('Application already accepted');
+              } else {
+                updateStatusMutation.mutate('accepted');
+              }
+            }}
+            disabled={application?.status === 'accepted'}
+            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          >
+            <CheckCircle className="h-5 w-5" />
+            Accept Candidate
+          </button>
+          <button
+            onClick={() => {
+              if (application?.status === 'rejected') {
+                toast.success('Application already rejected');
+              } else {
+                updateStatusMutation.mutate('rejected');
+              }
+            }}
+            disabled={application?.status === 'rejected'}
+            className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          >
+            <XCircle className="h-5 w-5" />
+            Reject Application
+          </button>
+        </div>
       </div>
     </div>
   );

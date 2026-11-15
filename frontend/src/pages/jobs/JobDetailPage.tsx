@@ -1,6 +1,6 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, DollarSign, Users, Bookmark, BookmarkCheck, ArrowLeft, Building2, CheckCircle2, ExternalLink } from 'lucide-react';
+import { MapPin, Clock, DollarSign, Users, Bookmark, BookmarkCheck, ArrowLeft, Building2, CheckCircle2, ExternalLink, MessageSquare } from 'lucide-react';
 import { useJob, useBookmarkJob, useUnbookmarkJob } from '@/hooks/useJobs';
 import { JobCardSkeleton } from '@/components/ui/SkeletonCard';
 import MatchScoreRing from '@/components/ui/MatchScoreRing';
@@ -9,11 +9,14 @@ import { cn, formatSalary, timeAgo, getStatusColor } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useState } from 'react';
 import ApplyModal from '@/components/jobs/ApplyModal';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id!);
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const bookmarkMutation = useBookmarkJob();
   const unbookmarkMutation = useUnbookmarkJob();
   const [applyOpen, setApplyOpen] = useState(false);
@@ -190,11 +193,37 @@ export default function JobDetailPage() {
               )}
 
               {user?.role === 'jobseeker' && (
-                <button onClick={toggleBookmark} className="btn-secondary w-full py-2.5 flex items-center justify-center gap-2 text-sm">
-                  {job.isBookmarked
-                    ? <><BookmarkCheck className="w-4 h-4 text-primary" /> Saved</>
-                    : <><Bookmark className="w-4 h-4" /> Save Job</>}
-                </button>
+                <>
+                  <button onClick={toggleBookmark} className="btn-secondary w-full py-2.5 flex items-center justify-center gap-2 text-sm">
+                    {job.isBookmarked
+                      ? <><BookmarkCheck className="w-4 h-4 text-primary" /> Saved</>
+                      : <><Bookmark className="w-4 h-4" /> Save Job</>}
+                  </button>
+                  
+                  <button 
+                    onClick={async () => {
+                      try {
+                        if (!employer._id) {
+                          toast.error('Employer information not available');
+                          return;
+                        }
+                        // Send initial message to employer about the job
+                        await api.post('/messages', {
+                          recipientId: employer._id,
+                          text: `Hi, I'm interested in the ${job.title} position and would like to learn more about this opportunity.`
+                        });
+                        toast.success('Message sent! Redirecting to inbox...');
+                        setTimeout(() => navigate('/dashboard/messages'), 1000);
+                      } catch (error: any) {
+                        toast.error(error?.response?.data?.message || 'Failed to send message');
+                      }
+                    }}
+                    className="btn-secondary w-full py-2.5 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Message Employer
+                  </button>
+                </>
               )}
             </motion.div>
 

@@ -32,6 +32,7 @@ const employerLinks = [
   { href: '/employer/applications', label: 'Applications', icon: FileText },
   { href: '/employer/candidates', label: 'Candidates', icon: Users },
   { href: '/employer/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/employer/messages', label: 'Messages', icon: MessageSquare },
   { href: '/employer/profile', label: 'Company Profile', icon: Building2 },
   { href: '/employer/settings', label: 'Settings', icon: Settings },
 ];
