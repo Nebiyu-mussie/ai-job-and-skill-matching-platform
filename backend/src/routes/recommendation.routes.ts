@@ -5,6 +5,7 @@ import { Course } from '../models/Course.model';
 import { MatchResult } from '../models/MatchResult.model';
 import { Application } from '../models/Application.model';
 import { ApiResponse } from '../utils/ApiResponse';
+import { generateCourseRecommendations, CourseRecommendation } from '../services/ai.service';
 
 const router = Router();
 
@@ -52,37 +53,48 @@ router.get('/jobs', authenticate, authorize('jobseeker'), async (req: any, res, 
   } catch (error) { next(error); }
 });
 
-// Get course recommendations
+// Get AI-powered course recommendations based on missing skills
 router.get('/courses', authenticate, authorize('jobseeker'), async (req: any, res, next) => {
   try {
     const user = req.user;
-    const userSkills = user.skills?.map((s: any) => s.name.toLowerCase()) || [];
+    const userSkills = user.skills?.map((s: any) => s.name) || [];
 
     // Find top match results to identify missing skills
     const topMatches = await MatchResult.find({ user: user._id })
       .sort({ overallScore: -1 })
-      .limit(5)
+      .limit(10)
       .lean();
 
-    const missingSkills = new Set<string>();
+    const missingSkillsSet = new Set<string>();
     topMatches.forEach((m) => {
-      m.missingSkills.forEach((s) => missingSkills.add(s.toLowerCase()));
+      m.missingSkills.forEach((s) => missingSkillsSet.add(s));
     });
 
-    const skillsToLearn = Array.from(missingSkills).slice(0, 10);
+    const missingSkills = Array.from(missingSkillsSet).slice(0, 10);
 
-    const courses = await Course.find({
+    // Generate AI-powered course recommendations
+    let aiRecommendations: CourseRecommendation[] = [];
+    if (missingSkills.length > 0) {
+      aiRecommendations = await generateCourseRecommendations(missingSkills, userSkills);
+    }
+
+    // Also get database courses as additional options
+    const dbCourses = await Course.find({
       isActive: true,
       $or: [
-        { skills: { $in: skillsToLearn.map((s) => new RegExp(s, 'i')) } },
+        { skills: { $in: missingSkills.map((s) => new RegExp(s, 'i')) } },
         { skills: { $in: userSkills.map((s: string) => new RegExp(s, 'i')) } },
       ],
     })
       .sort({ rating: -1, enrollments: -1 })
-      .limit(20)
+      .limit(10)
       .lean();
 
-    ApiResponse.success(res, { courses, targetSkills: skillsToLearn });
+    ApiResponse.success(res, { 
+      aiRecommendations,
+      courses: dbCourses, 
+      targetSkills: missingSkills 
+    });
   } catch (error) { next(error); }
 });
 

@@ -553,3 +553,125 @@ class AIService {
 }
 
 export const aiService = new AIService();
+
+export interface CourseRecommendation {
+  title: string;
+  platform: string;
+  url: string;
+  description: string;
+  duration: string;
+  level: 'beginner' | 'intermediate' | 'advanced';
+}
+
+/**
+ * Generate AI-powered course recommendations based on missing skills
+ */
+export async function generateCourseRecommendations(
+  missingSkills: string[],
+  userCurrentSkills: string[] = []
+): Promise<CourseRecommendation[]> {
+  const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+  const AI_SERVICE_API_KEY = process.env.AI_SERVICE_API_KEY || '';
+
+  try {
+    const prompt = `You are a career advisor helping a job seeker upskill. Based on their current skills and the skills they need to learn, recommend 5-8 relevant online courses.
+
+Current Skills: ${userCurrentSkills.join(', ') || 'None listed'}
+Skills to Learn: ${missingSkills.join(', ')}
+
+For each recommended course, provide:
+1. Course Title (specific and real course if possible)
+2. Platform (Coursera, Udemy, edX, LinkedIn Learning, Pluralsight, freeCodeCamp, etc.)
+3. URL (use actual course URLs if you know them, or platform homepage)
+4. Brief Description (1-2 sentences about what the course covers)
+5. Estimated Duration (e.g., "4 weeks", "20 hours")
+6. Level (beginner, intermediate, or advanced)
+
+Focus on practical, career-oriented courses that will help bridge the skill gap. Prioritize free or affordable options when possible.
+
+Return ONLY a valid JSON array with this exact structure:
+[
+  {
+    "title": "Course name",
+    "platform": "Platform name",
+    "url": "https://...",
+    "description": "What you'll learn...",
+    "duration": "X hours/weeks",
+    "level": "beginner|intermediate|advanced"
+  }
+]`;
+
+    const response = await axios.post(
+      `${AI_SERVICE_URL}/api/ai/generate`,
+      {
+        prompt,
+        maxTokens: 2000,
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': AI_SERVICE_API_KEY,
+        },
+        timeout: 30000,
+      }
+    );
+
+    const generatedText = response.data.response || response.data.text || '';
+    
+    // Try to extract JSON from the response
+    const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      logger.warn('No JSON array found in AI course recommendation response');
+      return generateFallbackCourseRecommendations(missingSkills);
+    }
+
+    const courses = JSON.parse(jsonMatch[0]);
+    
+    // Validate the structure
+    if (!Array.isArray(courses) || courses.length === 0) {
+      return generateFallbackCourseRecommendations(missingSkills);
+    }
+
+    return courses.slice(0, 8).map((course: any) => ({
+      title: course.title || 'Course Recommendation',
+      platform: course.platform || 'Online Platform',
+      url: course.url || 'https://www.coursera.org',
+      description: course.description || 'Learn new skills',
+      duration: course.duration || 'Self-paced',
+      level: ['beginner', 'intermediate', 'advanced'].includes(course.level)
+        ? course.level
+        : 'intermediate',
+    }));
+  } catch (error: any) {
+    logger.warn(`AI course recommendation failed: ${error.message}. Using fallback recommendations.`);
+    return generateFallbackCourseRecommendations(missingSkills);
+  }
+}
+
+/**
+ * Generate fallback course recommendations when AI service is unavailable
+ */
+function generateFallbackCourseRecommendations(missingSkills: string[]): CourseRecommendation[] {
+  const platformMap: Record<string, string> = {
+    'JavaScript': 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
+    'Python': 'https://www.coursera.org/specializations/python',
+    'React': 'https://react.dev/learn',
+    'Node.js': 'https://nodejs.org/en/learn/getting-started/introduction-to-nodejs',
+    'TypeScript': 'https://www.typescriptlang.org/docs/',
+    'Java': 'https://www.coursera.org/specializations/java-programming',
+    'AWS': 'https://aws.amazon.com/training/',
+    'Docker': 'https://docs.docker.com/get-started/',
+    'Kubernetes': 'https://kubernetes.io/docs/tutorials/',
+    'SQL': 'https://www.khanacademy.org/computing/computer-programming/sql',
+  };
+
+  return missingSkills.slice(0, 8).map((skill) => ({
+    title: `Learn ${skill}`,
+    platform: 'Multiple Platforms',
+    url: platformMap[skill] || `https://www.coursera.org/search?query=${encodeURIComponent(skill)}`,
+    description: `Comprehensive course to master ${skill} from beginner to advanced level. Build real-world projects and gain practical experience.`,
+    duration: '4-8 weeks',
+    level: 'intermediate' as const,
+  }));
+}
