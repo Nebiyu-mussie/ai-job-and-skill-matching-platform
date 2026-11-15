@@ -16,12 +16,21 @@ export const getConversations = async (req: AuthRequest, res: Response, next: Ne
     const userId = req.user._id;
     const userRole = req.user.role;
     
-    // Determine which model to use based on role
-    const userModel = userRole === 'employer' ? 'Employer' : 'User';
+    // Get the actual participant ID based on role
+    let participantId = userId;
+    
+    if (userRole === 'employer') {
+      // Find the employer document for this user
+      const employer = await Employer.findOne({ user: userId });
+      if (!employer) {
+        throw ApiError.notFound('Employer profile not found');
+      }
+      participantId = employer._id;
+    }
 
-    // Find conversations where the user is a participant
+    // Find conversations where the user/employer is a participant
     const conversations = await Conversation.find({
-      participants: userId,
+      participants: participantId,
     })
       .sort({ lastMessageAt: -1 })
       .lean();
@@ -29,9 +38,9 @@ export const getConversations = async (req: AuthRequest, res: Response, next: Ne
     // Populate participant details
     const populatedConversations = await Promise.all(
       conversations.map(async (conversation) => {
-        // Find the other participant (not the current user)
+        // Find the other participant (not the current user/employer)
         const otherParticipantIndex = conversation.participants.findIndex(
-          (p) => p.toString() !== userId.toString()
+          (p) => p.toString() !== participantId.toString()
         );
         
         if (otherParticipantIndex === -1) {
@@ -76,7 +85,7 @@ export const getConversations = async (req: AuthRequest, res: Response, next: Ne
         // Count unread messages for this user
         const unreadCount = await Message.countDocuments({
           conversationId: conversation._id,
-          senderId: { $ne: userId },
+          senderId: { $ne: participantId },
           isRead: false,
         });
 
@@ -86,7 +95,7 @@ export const getConversations = async (req: AuthRequest, res: Response, next: Ne
           lastMessage: lastMessage ? {
             text: lastMessage.text,
             createdAt: lastMessage.createdAt,
-            isFromMe: lastMessage.senderId.toString() === userId.toString(),
+            isFromMe: lastMessage.senderId.toString() === participantId.toString(),
           } : null,
           unreadCount,
           lastMessageAt: conversation.lastMessageAt,
@@ -111,11 +120,24 @@ export const getMessages = async (req: AuthRequest, res: Response, next: NextFun
 
     const { conversationId } = req.params;
     const userId = req.user._id;
+    const userRole = req.user.role;
+    
+    // Get the actual participant ID based on role
+    let participantId = userId;
+    
+    if (userRole === 'employer') {
+      // Find the employer document for this user
+      const employer = await Employer.findOne({ user: userId });
+      if (!employer) {
+        throw ApiError.notFound('Employer profile not found');
+      }
+      participantId = employer._id;
+    }
 
     // Verify conversation exists and user is a participant
     const conversation = await Conversation.findOne({
       _id: conversationId,
-      participants: userId,
+      participants: participantId,
     });
 
     if (!conversation) {
@@ -156,7 +178,7 @@ export const getMessages = async (req: AuthRequest, res: Response, next: NextFun
           _id: message._id,
           text: message.text,
           sender: senderDetails,
-          isFromMe: message.senderId.toString() === userId.toString(),
+          isFromMe: message.senderId.toString() === participantId.toString(),
           isRead: message.isRead,
           createdAt: message.createdAt,
         };
@@ -167,7 +189,7 @@ export const getMessages = async (req: AuthRequest, res: Response, next: NextFun
     await Message.updateMany(
       {
         conversationId,
-        senderId: { $ne: userId },
+        senderId: { $ne: participantId },
         isRead: false,
       },
       { isRead: true }
@@ -185,9 +207,24 @@ export const sendMessage = async (req: AuthRequest, res: Response, next: NextFun
     if (!req.user) throw ApiError.unauthorized();
 
     const { conversationId, recipientId, text, jobId } = req.body;
-    const senderId = req.user._id;
+    const userId = req.user._id;
     const senderRole = req.user.role;
-    const senderModel = senderRole === 'employer' ? 'Employer' : 'User';
+    
+    // Get the actual sender ID based on role
+    let senderId = userId;
+    let senderModel = 'User';
+    
+    if (senderRole === 'employer') {
+      // Find the employer document for this user
+      const employer = await Employer.findOne({ user: userId });
+      if (!employer) {
+        throw ApiError.notFound('Employer profile not found');
+      }
+      senderId = employer._id;
+      senderModel = 'Employer';
+    } else {
+      senderModel = 'User';
+    }
 
     if (!text || text.trim().length === 0) {
       throw ApiError.badRequest('Message text is required');
@@ -299,11 +336,24 @@ export const markAsRead = async (req: AuthRequest, res: Response, next: NextFunc
 
     const { conversationId } = req.params;
     const userId = req.user._id;
+    const userRole = req.user.role;
+    
+    // Get the actual participant ID based on role
+    let participantId = userId;
+    
+    if (userRole === 'employer') {
+      // Find the employer document for this user
+      const employer = await Employer.findOne({ user: userId });
+      if (!employer) {
+        throw ApiError.notFound('Employer profile not found');
+      }
+      participantId = employer._id;
+    }
 
     // Verify conversation exists and user is a participant
     const conversation = await Conversation.findOne({
       _id: conversationId,
-      participants: userId,
+      participants: participantId,
     });
 
     if (!conversation) {
@@ -314,7 +364,7 @@ export const markAsRead = async (req: AuthRequest, res: Response, next: NextFunc
     await Message.updateMany(
       {
         conversationId,
-        senderId: { $ne: userId },
+        senderId: { $ne: participantId },
         isRead: false,
       },
       { isRead: true }
