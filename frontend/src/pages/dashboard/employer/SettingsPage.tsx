@@ -243,12 +243,11 @@ function ProfileTab() {
               className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select size</option>
-              <option value="1-10">1-10 employees</option>
-              <option value="11-50">11-50 employees</option>
-              <option value="51-200">51-200 employees</option>
-              <option value="201-500">201-500 employees</option>
-              <option value="501-1000">501-1000 employees</option>
-              <option value="1000+">1000+ employees</option>
+              <option value="startup">Startup (1-10 employees)</option>
+              <option value="small">Small (11-50 employees)</option>
+              <option value="medium">Medium (51-200 employees)</option>
+              <option value="large">Large (201-1000 employees)</option>
+              <option value="enterprise">Enterprise (1000+ employees)</option>
             </select>
           </div>
 
